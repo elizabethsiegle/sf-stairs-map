@@ -61,6 +61,15 @@ test('near me sorts mapped stairways by distance', async ({ page }) => {
   await expect(page.locator('.stair-card').first().locator('.nearby-distance')).toContainText('away');
 });
 
+test('map location control starts the nearby-stairs flow', async ({ page }) => {
+  await page.context().grantPermissions(['geolocation']);
+  await page.context().setGeolocation({ latitude: 37.759, longitude: -122.435 });
+  await page.goto('/');
+  await page.locator('#locate').click();
+  await expect(page.locator('.results-heading h2')).toHaveText('Stairs near you');
+  await expect(page.locator('.stair-card').first().locator('.nearby-distance')).toContainText('away');
+});
+
 test('sheet-only locations never get invented coordinates', async ({ page }) => {
   await page.goto('/');
   await page.locator('#search').fill('Glen Canyon Park. Coyote Crags Trail.');

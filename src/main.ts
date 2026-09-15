@@ -209,17 +209,7 @@ const about = el<HTMLDialogElement>('#about');
 el('.dialog-close').addEventListener('click', () => about.close());
 about.addEventListener('click', event=>{if(event.target === about){const bounds=about.getBoundingClientRect();if(event.clientX<bounds.left||event.clientX>bounds.right||event.clientY<bounds.top||event.clientY>bounds.bottom)about.close();}});
 document.addEventListener('keydown', event => {if(event.key === 'Escape' && !about.open)hideDetail();});
-el('#locate').addEventListener('click', () => {
-  if(!navigator.geolocation){status('Your browser does not support location. Search a neighborhood instead.');return;}
-  status('Finding your location…');
-  navigator.geolocation.getCurrentPosition(position=> {
-    const {latitude, longitude} = position.coords;
-    if(latitude<37.6||latitude>37.9||longitude< -122.6||longitude> -122.3){status('You’re outside San Francisco. Pick a neighborhood to plan your next walk.');return;}
-    map.setView([latitude, longitude], 15);
-    L.circleMarker([latitude, longitude], {radius: 8, color: 'white', weight: 3, fillColor: '#2364d2', fillOpacity: 1}).bindTooltip('Your location').addTo(map);
-    status('Your location is shown in blue.');
-  }, ()=>status('Location unavailable. Allow location access or search a neighborhood.'), {timeout: 10000, maximumAge: 60000});
-});
+el('#locate').addEventListener('click', () => el<HTMLButtonElement>('#near-me').click());
 handleImages(el('#app'));
 render();
 const initial = stairs.find(s => s.id === location.hash.slice(1));

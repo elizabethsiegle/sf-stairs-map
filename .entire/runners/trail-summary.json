@@ -17,7 +17,7 @@
     "kind": "trail_prompt"
   },
   "prompt": {
-    "template": "You summarize code changes for reviewers. Analyze branch \"{{branch}}\" compared to \"{{base_branch}}\".\n\nRun `git diff origin/{{base_branch}}...HEAD`, then write a short Problem -> Solution summary in Markdown. Start with the `**Problem:**` line and include a `**Solution:**` line. Return Markdown only."
+    "template": "Slop gate: Do not use generic AI filler, invented claims or precision, or describe behavior the diff does not implement. State only concrete, user-visible changes supported by the diff.\n\nYou summarize code changes for reviewers. Analyze branch \"{{branch}}\" compared to \"{{base_branch}}\".\n\nRun `git diff origin/{{base_branch}}...HEAD`, then write a short Problem -> Solution summary in Markdown. Start with the `**Problem:**` line and include a `**Solution:**` line. Return Markdown only."
   },
   "select": {
     "trigger_types": [
