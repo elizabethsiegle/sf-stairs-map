@@ -62,6 +62,14 @@ test('photo preview filter only shows stairways with visible preview images', as
   await expect(page.locator('.stair-card .thumbnail img')).toHaveCount(45);
 });
 
+test('ratings without source previews show clearly labelled reference photos', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('[data-rating="4"]').click();
+  await expect(page.locator('.stair-card')).toHaveCount(45);
+  await expect(page.locator('.reference-photo')).toHaveCount(45);
+  await expect(page.locator('.reference-label').first()).toHaveText('Reference photo');
+});
+
 test('near me sorts mapped stairways by distance', async ({ page }) => {
   await page.context().grantPermissions(['geolocation']);
   await page.context().setGeolocation({ latitude: 37.759, longitude: -122.435 });

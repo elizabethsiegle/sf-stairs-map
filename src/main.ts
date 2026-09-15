@@ -3,6 +3,7 @@ import 'leaflet/dist/leaflet.css';
 import './style.css';
 import './route-planner.css';
 import './multi-neighborhood.css';
+import './reference-photos.css';
 const { default: dataset } = await import('./stairs.json');
 
 type Stair = (typeof dataset.stairs)[number];
@@ -175,6 +176,10 @@ function distanceFromNearbyOrigin(stair: Stair) {
 function formatNearbyDistance(meters: number) {
   return meters < 1609 ? `${Math.round(meters / 10) * 10} m away` : `${(meters / 1609.34).toFixed(1)} mi away`;
 }
+const referencePhotos = stairs.flatMap(stair => stair.image ? [stair.image] : []);
+function referencePhoto(stair: Stair) {
+  return referencePhotos[parseInt(stair.id.slice(0, 8), 16) % referencePhotos.length];
+}
 function renderList() {
   const results = el('#results');
   results.innerHTML = visible.length ? visible.slice(0, pageSize).map(stair => { const distance = distanceFromNearbyOrigin(stair); return `<button class="stair-card" data-id="${stair.id}"><span class="thumbnail ${stair.image ? '' : 'no-photo'}" style="--tint:${colors[stair.rating]}">${stair.image ? `<img src="${escape(stair.image)}" alt="" loading="lazy">` : icon('stairs', 29)}<span class="small-rating" style="background:${colors[stair.rating]}">${stair.rating || '?'}</span></span><span class="card-copy"><span class="neighborhood">${escape(stair.neighborhood)}</span><span class="stair-name">${escape(stair.name)}</span><span class="card-meta">${distance === undefined ? (stair.steps ? escape(stair.steps) + ' steps' : labels[stair.rating]) : `<b class="nearby-distance">${formatNearbyDistance(distance)}</b>`}${stair.photos.length ? ` <span>· ${icon('camera',12)}</span>` : ''}${stair.lat === null ? ' · Not mapped' : ''}</span></span><span class="card-arrow">↗</span></button>`; }).join('') + (visible.length > pageSize ? '<button id="load-more">Show more stairways ↓</button>' : '') : '<div class="empty"><h3>No stairs found.</h3><p>Try another street, neighborhood, or rating.</p><button id="empty-reset">Clear filters</button></div>';
@@ -182,6 +187,11 @@ function renderList() {
   results.querySelector('#load-more')?.addEventListener('click', () => {pageSize += 45; renderList();});
   results.querySelector('#empty-reset')?.addEventListener('click', reset);
   handleImages(results);
+  results.querySelectorAll<HTMLElement>('.thumbnail.no-photo').forEach((thumbnail, index) => {
+    thumbnail.classList.add('reference-photo');
+    thumbnail.style.backgroundImage = `url("${referencePhoto(visible[index])}")`;
+    thumbnail.insertAdjacentHTML('afterbegin', '<span class="reference-label">Reference photo</span>');
+  });
 }
 function fit() {
   const points = visible.filter(s=>s.lat!==null && s.lng!==null).map(s=>L.latLng(s.lat!, s.lng!));
