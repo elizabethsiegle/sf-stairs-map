@@ -1,0 +1,54 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "01M2HWHHYQTM0WC5GTDRA83YME",
+  "session_id": "01a0a360-24c0-7302-b64e-e9ef1d643310",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-15T06:37:21.476091Z",
+  "branch": "sf-stairs/route-generator",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "src/main.ts",
+    "src/route-planner.css",
+    "tests/map.spec.ts"
+  ],
+  "agent": "Codex",
+  "model": "gpt-5.6-terra",
+  "turn_id": "59864840a02f",
+  "checkpoint_transcript_start": 2266,
+  "transcript_lines_at_start": 2266,
+  "compact_transcript_start": 302,
+  "token_usage": {
+    "input_tokens": 43157,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 1744128,
+    "output_tokens": 9668,
+    "api_call_count": 23
+  },
+  "session_metrics": {
+    "turn_count": 10
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-15T06:37:21.246371Z",
+    "agent_lines": 170,
+    "agent_removed": 104,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 170,
+    "total_lines_changed": 274,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 90,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.json": 90
+      }
+    }
+  ]
+}

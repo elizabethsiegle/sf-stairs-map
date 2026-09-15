@@ -1,0 +1,13 @@
+ok when i run it locally, i like the "stairs near me" but then the pics dont show
+
+---
+
+run the Plan a multi-stairway route through San Francisco trail locally so i can test it
+
+---
+
+stop running locally. the plan a stair route should have an option to select a neighborhood for the route or a general ares
+
+---
+
+stop running locally. the plan a stair route should have an option to select a neighborhood for the route or a general ares
