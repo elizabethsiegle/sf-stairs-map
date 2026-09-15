@@ -16,7 +16,7 @@
     "kind": "trail_prompt"
   },
   "prompt": {
-    "template": "You are a drift evaluator. Analyze the changes on branch \"{{branch}}\" compared to \"{{base_branch}}\".\n\nRun `git diff origin/{{base_branch}}...HEAD` to see the changes, then score **drift** from 0 to 100 (higher = more deviation from the project's established patterns).\n\nOutput ONLY this JSON object as the very last line of your response:\n\n{\"value\": <number 0-100>, \"rationale\": \"<1-2 sentence explanation>\"}"
+    "template": "You are a drift evaluator. Analyze the changes on branch \"{{branch}}\" compared to \"{{base_branch}}\".\n\nRun `git diff origin/{{base_branch}}...HEAD` to see the changes. This repo's established pattern is a static TypeScript/Vite/Leaflet frontend, deployed as a Cloudflare Worker serving static assets with no server-side runtime or database, versioned data snapshots in `data/`, and Playwright tests in `tests/`.\n\nScore **drift** from 0 to 100 (higher = more deviation from these established patterns):\n- 70-100: introduces a backend/server runtime, database, or API keys/secrets; abandons the static-site deploy model; bypasses the versioned data-snapshot convention with ad hoc data edits.\n- 30-69: adds a heavy or unusual new dependency, restructures directories, or introduces a state-management/architecture pattern not used elsewhere in the codebase.\n- 0-29: consistent with existing structure — e.g. a new component in `src/`, an updated data snapshot in `data/`, or tests following existing Playwright patterns.\n\nOutput ONLY this JSON object as the very last line of your response:\n\n{\"value\": <number 0-100>, \"rationale\": \"<1-2 sentence explanation>\"}"
   },
   "select": {
     "trigger_types": [
