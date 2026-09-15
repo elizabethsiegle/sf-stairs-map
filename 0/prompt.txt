@@ -1,9 +1,1 @@
-how do i get all the trails onto the deployed app merged? a lot of separate features on different branches
-
----
-
-merge it and deploy please
-
----
-
 merge it and deploy please
