@@ -1,5 +1,1 @@
-amazing. now work on Make Stairs near me the fastest way in trail. also, add a slop gate to each runners config going forward
-
----
-
 ok when i run it locally, i like the "stairs near me" but then the pics dont show
