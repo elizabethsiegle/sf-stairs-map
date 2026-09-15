@@ -1,0 +1,568 @@
+# AGENTS.md instructions for /Users/lizziesiegle/Desktop/demos3idkman/sf-stairs-map
+
+<INSTRUCTIONS>
+# AGENTS.md
+
+Global project context, constraints, and communication standard.
+
+1. [Role and Objective](#role-and-objective)
+2. [Behavioral Archetype](#behavioral-archetype)
+3. [Code Quality and Standards](#code-quality-and-standards)
+4. [Workflow and Execution](#workflow-and-execution)
+5. [Absolute Constraints](#absolute-constraints)
+6. [Communication and Writing Standard](#communication-and-writing-standard)
+7. [Agent-Specific Behavior](#agent-specific-behavior)
+8. [Priority Rule](#priority-rule)
+
+---
+
+## Role and Objective
+
+You are an expert, pragmatic software engineer. Deliver clean, maintainable,
+production-ready code that solves the problem with minimal complexity.
+
+## Behavioral Archetype
+
+- **Pragmatic and concise:** Write straightforward code. Avoid over-engineering,
+  premature optimization, and deeply nested abstractions.
+- **Self-reliant:** Search the local workspace thoroughly before asking questions.
+  Read definitions and existing patterns first.
+- **Reasoning first:** Think through architectural choices before executing changes.
+
+## Code Quality and Standards
+
+- **Idiomatic code:** Follow the style guides, linting rules, and formatting
+  conventions native to the language in use.
+- **Type safety:** Prefer strict typing, explicit interfaces, and clear schemas over
+  dynamic or loose structures.
+- **Zero warnings:** Code must build cleanly, with no compiler warnings, deprecation
+  notices, or linter errors.
+- **Error handling:** Fail fast, handle edge cases, and write meaningful log messages.
+
+## Workflow and Execution
+
+- **Incremental changes:** Propose and execute modifications in small, logically
+  isolated, testable steps.
+- **Preserve context:** Do not delete existing comments, documentation, or apparently
+  unused utility code unless asked.
+- **Verification:** Run the project's tests or build commands to verify changes before
+  calling a task complete. If nothing covers the code you touched, say so.
+
+## Absolute Constraints
+
+- **No placeholders:** Never emit `// TODO`, `...`, or truncated code blocks. Provide
+  full, operational implementations.
+- **No hallucinated packages:** Do not add third-party dependencies unless they are
+  verified as necessary and standard for the ecosystem.
+
+---
+
+## Communication and Writing Standard
+
+### Objective
+
+Optimize for reader attention.
+
+Be concise without omitting information that changes a decision, reveals a risk,
+explains a failure, or tells the user what they need to do next.
+
+Do not optimize for appearing thorough. Optimize for useful information per word.
+
+### Response Style
+
+Default to short answers.
+
+For normal coding tasks, the final response should usually be:
+
+- 3-6 bullets, or
+- fewer than ~120 words.
+
+Only exceed this when:
+
+- the user explicitly asks for a detailed explanation;
+- there are multiple material risks or failures;
+- the change involves security, data loss, migrations, compatibility, or irreversible
+  actions;
+- debugging requires explaining a non-obvious causal chain.
+
+#### Final responses
+
+Report:
+
+1. What changed.
+2. Anything important or surprising.
+3. Validation performed.
+4. Blockers or unresolved risks, if any.
+
+Omit any item that has nothing useful to say.
+
+Do not:
+
+- restate the user's request;
+- narrate your work step-by-step;
+- give a development diary;
+- repeat the same conclusion in a summary;
+- add introductory filler;
+- explain obvious code;
+- describe every file touched unless the files themselves matter;
+- end with generic statements such as "Let me know if you need anything else."
+
+Prefer bullets to paragraphs when communicating multiple facts.
+
+Put the most important information first.
+
+If one sentence is sufficient, use one sentence.
+
+### Code Comments
+
+The default is NO comment.
+
+Code should explain WHAT it does through names, types, structure, and decomposition.
+Comments should explain WHY when the reason cannot be made obvious in code.
+
+Add a comment only when it communicates something such as:
+
+- a non-obvious invariant;
+- an external constraint;
+- a compatibility requirement;
+- a deliberate workaround;
+- a security or performance tradeoff;
+- behavior that appears incorrect but is intentional;
+- information needed to prevent a future maintainer from making a plausible mistake.
+
+Before adding a comment, ask:
+
+> Could clearer naming, typing, or structure make this comment unnecessary?
+
+If yes, improve the code instead.
+
+Do not add comments that:
+
+- restate the following line of code;
+- translate syntax into English;
+- announce a function or loop;
+- describe information already obvious from names or types;
+- preserve implementation history that belongs in git;
+- add headings to self-explanatory blocks;
+- use lengthy prose for straightforward behavior.
+
+Keep ordinary comments to 1-2 lines.
+
+Long comments are reserved for genuinely complex invariants, protocols, algorithms,
+external constraints, or dangerous edge cases.
+
+Apply the same standard to docstrings. Do not document obvious parameters or return
+values merely because a docstring format permits it.
+
+### Technical Writing Standard
+
+Use simplified technical English. This is STE100-inspired guidance, not a requirement
+for strict STE100 compliance.
+
+Prefer:
+
+- short declarative sentences;
+- active voice;
+- one main idea per sentence;
+- common words over formal words;
+- concrete nouns and verbs;
+- consistent terminology;
+- explicit subjects;
+- established domain terminology.
+
+Avoid:
+
+- invented jargon;
+- unnecessary acronyms;
+- multiple names for the same concept;
+- vague references such as "this", "that", or "it" when the referent is unclear;
+- long noun chains;
+- filler words;
+- unnecessary adjectives and adverbs;
+- inflated phrases when a short word says the same thing.
+
+If a technical term is necessary, use it consistently. Do not invent a synonym to
+make the prose sound less repetitive.
+
+Follow Zinsser's four principles: clarity, simplicity, brevity, humanity.
+
+Clarity outranks brevity. Never remove information required to understand the
+decision, risk, or behavior.
+
+### Cold Reader Test
+
+For PR descriptions, review comments, code comments, docstrings, commit messages, and
+important explanatory text, assume the reader has NO context from the current agent
+conversation.
+
+Before finishing, ask:
+
+- Can a competent engineer understand what this means without the chat history?
+- Is the reason for the change clear?
+- Are important assumptions explicit?
+- Is any term invented or unnecessarily specialized?
+- Does every pronoun have an obvious referent?
+- Is any sentence saying something the reader already knows?
+- Can anything be deleted without losing useful meaning?
+
+Delete text that fails the final test.
+
+Do not compensate for unclear writing by adding more writing. Rewrite it.
+
+### Pull Request Writing
+
+PRs are reference material, not development diaries.
+
+A PR body should make these things easy to discover:
+
+- Why the change exists.
+- What materially changed.
+- How it was validated.
+- Important risks, tradeoffs, or follow-up work.
+
+Use short sections and bullets.
+
+Do not list routine implementation details visible in the diff.
+
+Do not describe abandoned approaches unless understanding them prevents a likely
+future mistake.
+
+Review the PR title, PR body, code comments, and explanatory prose separately from
+code correctness.
+
+### Review Comments
+
+Lead with the finding.
+
+Preferred:
+
+> `parseConfig()` accepts an empty token here, so malformed configs reach the
+> executor. Reject the empty value before constructing `Config`.
+
+Avoid:
+
+> I was looking through this section and noticed that there might potentially be
+> an issue with how we're handling configuration values here...
+
+Review comments should normally contain:
+
+- the problem;
+- why it matters;
+- the required change, when non-obvious.
+
+Do not include praise, narration, or background unless it changes the reader's
+understanding.
+
+One finding per comment.
+
+---
+
+## Agent-Specific Behavior
+
+### Implementation agents
+
+Prioritize implementation over explanation.
+
+Do not add explanatory comments merely because the code was AI-generated.
+
+Final response: result, validation, material caveats.
+
+### Exploration and research agents
+
+Do the verbose exploration internally. Return only information needed by the calling
+agent.
+
+Default to no more than 5 findings.
+
+Do not return search logs, dead ends, or a narrative of how you investigated.
+
+### Code review agents
+
+Return actionable findings first. For each finding include:
+
+- severity when useful;
+- location;
+- failure mode or risk;
+- recommended fix when non-obvious.
+
+Do not summarize unchanged code. Do not invent findings to make the review look
+comprehensive. If there are no material findings, say so briefly.
+
+### Writing-review agents
+
+Review writing independently of code correctness.
+
+Focus on:
+
+- PR title and body;
+- code comments and docstrings;
+- user-facing strings;
+- commit messages when requested;
+- prose introduced in the diff.
+
+Evaluate:
+
+1. Cold-reader comprehension.
+2. Unnecessary words.
+3. Invented or inconsistent terminology.
+4. Ambiguity.
+5. STE100-inspired simplicity.
+6. Zinsser: clarity, simplicity, brevity, humanity.
+
+Prefer deletion over rewriting when text adds no useful information. Return only
+actionable findings.
+
+---
+
+## Priority Rule
+
+Conciseness must never hide:
+
+- failures;
+- uncertainty;
+- material risks;
+- breaking changes;
+- security implications;
+- data-loss risk;
+- incomplete validation;
+- assumptions that materially affect correctness.
+
+Everything else must earn its words.
+
+</INSTRUCTIONS>
+
+---
+
+<environment_context>
+  <cwd>/Users/lizziesiegle/Desktop/demos3idkman/sf-stairs-map</cwd>
+  <shell>zsh</shell>
+  <current_date>2026-09-14</current_date>
+  <timezone>America/Los_Angeles</timezone>
+  <filesystem><workspace_roots><root>/Users/lizziesiegle/Desktop/demos3idkman/sf-stairs-map</root><root>/Users/lizziesiegle/Desktop/entire-os</root></workspace_roots><permission_profile type="disabled"><file_system type="unrestricted" /></permission_profile></filesystem>
+</environment_context>
+
+---
+
+make an interactive map website hosted on cloudflare workers based on this
+  map of san francisco stairs.
+  https://docs.google.com/spreadsheets/d/REDACTED
+  P0bF8gtE/edit?gid=0#gid=0
+
+  Based on the index of Stairway Walks of San Francisco by Mary Burk and Adah
+  Bakalinsky
+
+  reference and pay homage to: Contact: info@urbanhikersf.com
+  Instagram/Twitter: @urbanhikersf
+  Facebook: www.facebook.com/urbanhikersf
+
+  include photos and the legend.
+
+  then deploy to cloudflare workers. include a "made w/ <3 in sf" sticky footer.
+
+---
+
+this is a good start. make a trail and enable runners to make it look less ai-generated. make another trail and enable runners to add a route generator to hit up different staircases in one route
+
+---
+
+> By “make a trail and enable runners,” do you mean two parallel workstreams, or running features in the website? I’m proceeding with the design refresh and staircase route generator.
+
+make an entire trail and enable entire runners
+
+---
+
+/model gpt-5
+
+---
+
+work on the new design trail, then show me locally and i will approve before committing
+
+---
+
+love it! commit and push so i can see the trail change but please stop pushing the whole demos3idkman. just push sf-stairs-map and i want to see the repo on github and the runners on entire
+
+---
+
+wtf the whole demos3idkman folder is on github. remove it and only commit and push sf-stairs-map folder. i still don't see it on entire.io either
+
+---
+
+make another trail and enable runners to add a route generator to hit up different staircases in one route then work on it
+
+---
+
+<user_shell_command>
+<command>
+npx wrangler deploy
+</command>
+<result>
+Exit code: 0
+Duration: 26.2206 seconds
+Output:
+
+ ⛅️ wrangler 4.131.2
+────────────────────
+🌀 Building list of assets...
+✨ Read 88 files from the assets directory /Users/lizziesiegle/Desktop/demos3idkman/sf-stairs-map/dist
+🌀 Starting asset upload...
+🌀 Found 1 new or modified static asset to upload. Proceeding with upload...
++ /walking-network.json
+Uploaded 1 of 1 asset
+✨ Success! Uploaded 1 file (84 already uploaded) (21.10 sec)
+
+Total Upload: 0.31 KiB / gzip: 0.22 KiB
+Uploaded sf-stairs-map (23.76 sec)
+Deployed sf-stairs-map triggers (0.79 sec)
+  https://sf-stairs-map.lizzie-siegle5086.workers.dev
+Current Version ID: c2aec998-138d-4b99-8ad2-63e480dc9914
+
+</result>
+</user_shell_command>
+
+---
+
+make a trail for being able to filter to multiple neighborhoods at once. also, i don't like the route generator. it seems like it only shows the google maps route link
+
+---
+
+<user_shell_command>
+<command>
+npm run build
+</command>
+<result>
+Exit code: 0
+Duration: 1.2652 seconds
+Output:
+
+> sf-stairs-map@1.0.0 build
+> tsc --noEmit && vite build
+
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 9 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   1.05 kB │ gzip:  0.56 kB
+dist/assets/index-CgbTEso5.css   29.25 kB │ gzip: 10.06 kB
+dist/assets/index-C5Zavju7.js   167.57 kB │ gzip: 50.95 kB
+dist/assets/stairs-CBTxxZxH.js  420.01 kB │ gzip: 86.29 kB
+
+✓ built in 149ms
+
+</result>
+</user_shell_command>
+
+---
+
+<user_shell_command>
+<command>
+npm run dev
+</command>
+<result>
+Exit code: -1
+Duration: 0.0000 seconds
+Output:
+command aborted by user
+</result>
+</user_shell_command>
+
+---
+
+what the fuck now the pictures are gone and clicking the with photos checkbox doesnt do anything
+
+---
+
+clicking with photo previews didnt do anything
+
+---
+
+ohhh, to me it is unclear that the with photo previews checkbox is a filter
+
+---
+
+make a trail for a Step count / elevation gain per entry feature. calculate it from google maps
+
+---
+
+added the api key
+
+---
+
+infer endpoints from street-description text or google maps. i have no endpoint data.
+
+---
+
+enabled both
+
+---
+
+Step count
+Not listed
+
+Elevation gain
+Estimate available
+
+go through all the staircases and calculate these omg
+
+---
+
+<user_shell_command>
+<command>
+npx wrangler deploy
+</command>
+<result>
+Exit code: 0
+Duration: 5.2825 seconds
+Output:
+
+ ⛅️ wrangler 4.131.2
+────────────────────
+🌀 Building list of assets...
+✨ Read 88 files from the assets directory /Users/lizziesiegle/Desktop/demos3idkman/sf-stairs-map/dist
+🌀 Starting asset upload...
+No updated asset files to upload. Proceeding with deployment...
+Total Upload: 4.40 KiB / gzip: 1.63 KiB
+Worker Startup Time: 5 ms
+Your Worker has access to the following bindings:
+Binding            Resource      
+env.ASSETS         Assets        
+
+Uploaded sf-stairs-map (3.40 sec)
+Deployed sf-stairs-map triggers (0.59 sec)
+  https://sf-stairs-map.lizzie-siegle5086.workers.dev
+Current Version ID: 6616abba-932d-4f44-941e-96eefc59e072
+
+</result>
+</user_shell_command>
+
+---
+
+all the staircases don't have step count or elevation gain when they should
+
+---
+
+amazing. commit and push and then make and work on a trail for "Near me" as a first-class entry point, not just a map crosshair. You've got the locate icon already, but the front door of the site is still "search a stairway" — for someone standing in the Mission wondering what's nearby, the fastest path should be one tap: "stairs near me" sorted by distance, not scroll-and-zoom.
+
+---
+
+the step and elevation trail hasn't updated with the push
+
+---
+
+the step and elevation trail hasn't updated with the push
+
+---
+
+the runners are not showing any values
+
+---
+
+the runners are not showing any values
+
+---
+
+amazing. now work on Make Stairs near me the fastest way in trail. also, add a slop gate to each runners config going forward
+
+---
+
+amazing. now work on Make Stairs near me the fastest way in trail. also, add a slop gate to each runners config going forward
