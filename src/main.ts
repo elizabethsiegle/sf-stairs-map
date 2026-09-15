@@ -3,6 +3,7 @@ import 'leaflet/dist/leaflet.css';
 import './style.css';
 import './route-planner.css';
 import './multi-neighborhood.css';
+import './verification-report.css';
 const { default: dataset } = await import('./stairs.json');
 
 type Stair = (typeof dataset.stairs)[number];
@@ -89,6 +90,7 @@ el('#neighborhood').parentElement!.outerHTML = `<details id="neighborhood-picker
 el('.toolbar-right').insertAdjacentHTML('beforeend', `<button id="route-toggle" class="route-toggle" aria-expanded="false">${icon('route', 17)} Plan a stair route</button>`);
 el('.map-wrap').insertAdjacentHTML('beforeend', `<section id="route-planner" class="route-planner" hidden><button id="route-close" class="route-close" aria-label="Close route planner">${icon('close', 17)}</button><div class="eyebrow"><span></span> Walk planner</div><h2>A good day for stairs.</h2><p>Choose a neighborhood or a broad area, then make a compact loop.</p><div class="route-controls"><label>Route area <select id="route-area">${routeAreaOptions}</select></label><label>Stairways <select id="route-preference"><option value="best">Best rated when available</option><option value="nearby">Closest mix of ratings</option></select></label><label>Stops <select id="route-count">${[3,4,5,6,7,8].map(count => `<option value="${count}"${count === 4 ? ' selected' : ''}>${count} stairways</option>`).join('')}</select></label></div><button id="route-generate" class="route-generate">${icon('shuffle', 16)} Generate a route</button><p id="route-note" class="route-note"></p><div id="route-output" hidden><p id="route-distance"></p><ol id="route-stops"></ol><a id="route-directions" target="_blank" rel="noopener noreferrer">Continue in Google Maps ${icon('external', 15)}</a></div></section>`);
 
+el('#app').insertAdjacentHTML('beforeend', '<dialog id="verification-report"><form id="verification-form"><button type="button" id="verification-close">×</button><p class="eyebrow">COMMUNITY UPDATE</p><h2>Help verify this stairway</h2><p>Share what you found. Reports are reviewed before this map changes.</p><label>What needs updating?<select name="type"><option value="location">Location or route</option><option value="access">Access or closure</option><option value="duplicate">Duplicate listing</option><option value="photo">Photo or link</option><option value="other">Something else</option></select></label><label>What did you find?<textarea name="details" required maxlength="1500"></textarea></label><label>Email (optional)<input name="contact" type="email"></label><button>Send report</button><p id="verification-status" role="status"></p></form></dialog>');
 const map = L.map('map', {zoomControl: false, preferCanvas: true}).setView([37.759, -122.445], 12);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).on('tileerror', () => status('Map tiles could not load. You can still browse stairways in the list.')).addTo(map);
 L.control.zoom({position: 'topright'}).addTo(map);
@@ -117,6 +119,13 @@ function selectStair(stair: Stair) {
   detail.hidden = false;
   detail.innerHTML = `<button class="detail-close" aria-label="Close stairway details">${icon('close')}</button>${stair.image ? `<a class="detail-image-link" href="${escape(stair.photos[0])}" target="_blank" rel="noopener noreferrer"><img class="detail-image" src="${escape(stair.image)}" alt="${escape(stair.name)}"><span>Photos from the Urban Hiker SF collection ↗</span></a>` : ''}<div class="detail-content"><div class="eyebrow">${escape(stair.neighborhood)}</div><h2>${escape(stair.name)}</h2><div class="detail-tags"><span class="rating-tag" style="--dot:${colors[stair.rating]}">${stair.rating ? '★ ' + stair.rating + ' / 5' : '? Unrated'}</span><span>${labels[stair.rating]}</span></div><section class="entry-measurements"><div><span>Step count</span><strong id="step-count">${stair.steps ? `${escape(stair.steps)} steps` : 'Estimating…'}</strong><small id="step-note">${stair.steps ? 'From the source index' : 'Estimated from Google elevation'}</small></div>${stair.lat !== null ? `<div id="elevation-card"><span>Elevation gain</span><strong id="elevation-value">Calculating…</strong><button id="elevation-button">${icon('elevation', 15)} Calculate from Google Maps</button><small id="elevation-note">Using the mapped point and a Google Maps endpoint or local terrain range.</small></div>` : '<div><span>Elevation gain</span><strong>Not mapped</strong><small>This entry has no coordinates.</small></div>'}</section>${stair.needsVerification ? '<p class="notice">This location needs verification in the original map.</p>' : ''}${stair.lat === null ? '<p class="notice">Listed in the spreadsheet; no matched map coordinates.</p>' : ''}<div class="detail-links">${stair.photos.map((url, i)=>`<a href="${escape(url)}" target="_blank" rel="noopener noreferrer">${icon('camera',16)} ${i ? 'More photos' : 'View original photos'} ↗</a>`).join('')}${stair.lat !== null ? `<a class="directions" href="https://www.google.com/maps/dir/?api=1&destination=${stair.lat},${stair.lng}&travelmode=walking" target="_blank" rel="noopener noreferrer">Walking directions ${icon('arrow',16)}</a>` : ''}</div>${!stair.photos.length ? '<p class="muted">No photos linked in the source collection yet.</p>' : ''}${/photo by/i.test(stair.photoNote) ? `<p class="muted">${escape(stair.photoNote.replace(/https:\/\/\S+/g, '').trim())}</p>` : ''}${'row' in stair ? `<a class="source-row" href="${sourceSheet}&range=B${stair.row}:F${stair.row}" target="_blank" rel="noopener noreferrer">View spreadsheet entry ↗</a>` : `<a class="source-row" href="${sourceMap}" target="_blank" rel="noopener noreferrer">View original map ↗</a>`}</div>`;
   detail.querySelector('button')!.addEventListener('click', hideDetail);
+  if (stair.needsVerification) {
+    detail.querySelector('.detail-content')!.insertAdjacentHTML('beforeend', '<button class="report-verification">Help verify this stairway</button>');
+    detail.querySelector<HTMLButtonElement>('.report-verification')!.addEventListener('click', () => {
+      el<HTMLDialogElement>('#verification-report').dataset.stairId = stair.id;
+      el<HTMLDialogElement>('#verification-report').showModal();
+    });
+  }
   if (stair.lat !== null && stair.lng !== null) void calculateElevation(stair, detail);
   handleImages(detail);
   if(selectedMarker) map.removeLayer(selectedMarker);
@@ -260,6 +269,14 @@ el('.dialog-close').addEventListener('click', () => about.close());
 about.addEventListener('click', event=>{if(event.target === about){const bounds=about.getBoundingClientRect();if(event.clientX<bounds.left||event.clientX>bounds.right||event.clientY<bounds.top||event.clientY>bounds.bottom)about.close();}});
 document.addEventListener('keydown', event => {if(event.key === 'Escape' && !about.open)hideDetail();});
 el('#locate').addEventListener('click', () => el<HTMLButtonElement>('#near-me').click());
+el('#verification-close').addEventListener('click', () => el<HTMLDialogElement>('#verification-report').close());
+el<HTMLFormElement>('#verification-form').addEventListener('submit', async event => {
+  event.preventDefault(); const dialog = el<HTMLDialogElement>('#verification-report'); const form = event.currentTarget as HTMLFormElement; const status = el('#verification-status'); const fields = new FormData(form);
+  status.textContent = 'Sending…';
+  const response = await fetch('/api/verification-reports', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ stairId: dialog.dataset.stairId, type: fields.get('type'), details: fields.get('details'), contact: fields.get('contact') }) });
+  status.textContent = response.ok ? 'Thanks — your report is queued for review.' : 'That report could not be sent. Please try again.';
+  if (response.ok) form.reset();
+});
 handleImages(el('#app'));
 render();
 const initial = stairs.find(s => s.id === location.hash.slice(1));
