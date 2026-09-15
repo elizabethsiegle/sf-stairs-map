@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "01M2HW5ER3HWRM1JWWSRE1SRQK",
+  "strategy": "manual-commit",
+  "branch": "sf-stairs/near-me",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "tests/map.spec.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 22069,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 532992,
+    "output_tokens": 3575,
+    "api_call_count": 10
+  }
+}
