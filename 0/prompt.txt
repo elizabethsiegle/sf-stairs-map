@@ -1,0 +1,17 @@
+amazing. make a trail so the big stairway image above  the map id a random different pic each time and also the arrow works so it's an array of 3 random stairway pics
+
+---
+
+verify page bahvior
+
+---
+
+commit and push
+
+---
+
+make a trail that surfaces "needs verification" as a crowdsourcing loop. A form that keeps the data fresher than a static spreadsheet import. This is for the legend category for unverified entries
+
+---
+
+work on trail 7 and enable runners including a slop gate
