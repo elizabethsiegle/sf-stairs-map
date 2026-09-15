@@ -1,0 +1,166 @@
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import './style.css';
+const { default: dataset } = await import('./stairs.json');
+
+type Stair = (typeof dataset.stairs)[number];
+const stairs: Stair[] = dataset.stairs;
+const colors = ['#242923', '#0288d1', '#558b2f', '#d2ad00', '#f57c00', '#e65100'];
+const labels = ['Needs verification', 'Simple & functional', 'Neighborhood character', 'Hidden gems', 'Something special', 'The Scheherazade category'];
+const legendDescriptions = [
+  'Black markers need verification or an addition to the source spreadsheet.',
+  'The most ordinary stairways in the index.',
+  'Part of the neighborhood’s history and everyday life. The setting or view may be the main attraction.',
+  'Lesser-known stairways in especially attractive surroundings.',
+  'Impressive design or an outstanding feature, with only minor shortcomings.',
+  'Stairways that surprise, spark the imagination, and delight the senses. Elegant or rustic, short or long.'
+];
+const sourceSheet = 'https://docs.google.com/spreadsheets/d/1OHwJvr7IrhPZ4nCelzOnPeDp3Rl567uNnytP0bF8gtE/edit?gid=0';
+const sourceMap = 'https://www.google.com/maps/d/viewer?mid=1F4TY3dl4yiG6VBqigpnrFvhsbK_FYcsW';
+const icon = (name: string, size = 20) => {
+  const paths: Record<string, string> = {
+    stairs: '<path d="M3 21h6v-6h6V9h6V3"/>',
+    search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',
+    arrow: '<path d="M5 12h14m-6-6 6 6-6 6"/>',
+    pin: '<path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/>',
+    camera: '<path d="M3 7h4l2-3h6l2 3h4v13H3Z"/><circle cx="12" cy="13" r="4"/>',
+    locate: '<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 1v4m0 14v4M1 12h4m14 0h4"/>',
+    close: '<path d="m6 6 12 12M6 18 18 6"/>',
+    shuffle: '<path d="m3 5 5 0 8 14h5m-5-4 5 4-5 4M3 19h5L16 5h5m-5-4 5 4-5 4"/>',
+    external: '<path d="M14 3h7v7m0-7L10 14M10 3H3v18h18v-7"/>'
+  };
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.stairs}</svg>`;
+};
+const escape = (value: string) => value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]!));
+function el<T extends HTMLElement>(selector: string): T {
+  const node = document.querySelector<T>(selector);
+  if (!node) throw new Error(`Missing element: ${selector}`);
+  return node;
+}
+const neighborhoods = [...new Set(stairs.map(stair => stair.neighborhood))].sort();
+const featured = stairs.find(stair => stair.name.includes('Tompkins') && stair.image) || stairs.find(stair => stair.image)!;
+let rating = 'all';
+let query = '';
+let neighborhood = '';
+let photosOnly = false;
+let visible: Stair[] = [];
+let selected: Stair | undefined;
+let pageSize = 45;
+
+el('#app').innerHTML = `
+  <header class="header">
+    <a class="brand" href="/" aria-label="SF Stairs home"><span class="brand-icon">${icon('stairs', 28)}</span><span>sf stairs<span class="brand-dot">.</span></span></a>
+    <div class="header-note">A FIELD GUIDE TO THE CITY’S STAIRWAYS</div>
+    <button id="about-button" class="text-button">The story behind the steps ${icon('arrow', 16)}</button>
+  </header>
+  <main>
+    <section class="intro">
+      <div class="intro-copy"><div class="eyebrow"><span></span> SAN FRANCISCO, ONE STEP AT A TIME</div>
+        <h1>Take the <span>scenic way.</span></h1>
+        <p>A thousand little ways to fall in love with this city.<br>Find hidden stairways, neighborhood gems, and a new view.</p>
+        <div class="intro-bottom"><span><strong>${stairs.filter(s => s.lat !== null).length.toLocaleString()}</strong> mapped stairways</span><span class="divider"></span><span>Inspired by <button id="credit-button">Urban Hiker SF ↗</button></span></div>
+      </div>
+      <button id="featured" class="featured" aria-label="Explore ${escape(featured.name)}"><img src="${escape(featured.image!)}" alt="${escape(featured.name)}" fetchpriority="high"><span class="featured-shade"></span><span class="photo-stamp">A DIFFERENT KIND OF SHORTCUT</span><span class="featured-caption"><span>${escape(featured.name.split('/')[0])}<small>${escape(featured.neighborhood)} · ★ ${featured.rating} rated</small></span><span class="circle-arrow">${icon('arrow')}</span></span></button>
+    </section>
+    <section class="explorer" aria-label="Explore stairways">
+      <div class="toolbar"><label class="search">${icon('search')}<input id="search" type="search" placeholder="Search a stairway, street, or neighborhood" aria-label="Search stairways"></label><div class="toolbar-right"><label class="select-wrap">${icon('pin', 17)}<select id="neighborhood" aria-label="Neighborhood"><option value="">All neighborhoods</option>${neighborhoods.map(n => `<option>${escape(n)}</option>`).join('')}</select></label><button id="surprise" class="surprise">${icon('shuffle', 17)} Surprise me</button></div></div>
+      <div class="filter-bar"><span class="filter-label">EXPLORE BY RATING</span><div class="rating-filters"><button class="chip active" data-rating="all" aria-pressed="true">All stairs</button>${[5,4,3,2,1].map(r => `<button class="chip" data-rating="${r}" aria-pressed="false"><span class="dot" style="--dot:${colors[r]}"></span>${r}<span class="chip-extra"> · ${['','','Local favorites','Hidden gems','Impressive','Extraordinary'][r] || 'Everyday'}</span></button>`).join('')}</div><label class="photo-filter"><input type="checkbox" id="photos-only"> With photos</label></div>
+      <div class="explorer-body"><aside class="results-panel"><div class="results-heading"><div><h2>Your next discovery</h2><p id="result-count" aria-live="polite"></p></div><button id="reset" class="reset">Reset</button></div><div id="results" class="results"></div></aside><div class="map-wrap"><div id="map" aria-label="Interactive San Francisco stairway map"></div><div class="map-badge"><span class="live-dot"></span> THE CITY IS BETTER ON FOOT</div><div class="map-actions"><button id="locate" aria-label="Find my location" title="Find my location">${icon('locate')}</button><button id="fit" aria-label="Fit all filtered stairways" title="Fit filtered stairways">${icon('pin')}</button></div><details class="map-legend" open><summary>Map legend <span>⌃</span></summary><div>${[5,4,3,2,1,0].map(r=>`<div><span class="dot" style="--dot:${colors[r]}"></span><b>${r || '?'}</b> ${labels[r]}</div>`).join('')}<button id="legend-button">What do the ratings mean? ↗</button></div></details><div id="detail" class="detail" hidden></div><p id="map-status" role="status" hidden></p></div></div>
+    </section>
+    <section class="credit-strip"><span class="credit-mark">${icon('stairs',28)}</span><p>A love letter to the people who take the long way.<br><span>Built on the stairway map by <button id="bottom-credit">Alexandra Kenin / Urban Hiker SF</button> and the work of Mary Burk & Adah Bakalinsky.</span></p><a href="${sourceSheet}" target="_blank" rel="noopener noreferrer">Explore the original collection ${icon('external',15)}</a></section>
+  </main>
+  <footer><span>SAN FRANCISCO, CALIFORNIA</span><span>made w/ <span class="heart">&lt;3</span> in sf</span><span>GO OUTSIDE. LOOK UP.</span></footer>
+  <dialog id="about"><button class="dialog-close" aria-label="Close about dialog">${icon('close')}</button><div class="eyebrow">THE PEOPLE BEHIND THE PATHS</div><h2>A city discovered<br>one stairway at a time.</h2><p>This independent project pays homage to <strong>Alexandra Kenin and Urban Hiker SF</strong>, whose public stairway map and photo collection make these discoveries possible.</p><p>The collection is based on the index of <em>Stairway Walks of San Francisco</em> by <strong>Mary Burk and Adah Bakalinsky</strong>, with additional stairways documented by Urban Hiker SF.</p><div class="source-links"><a href="${sourceSheet}" target="_blank" rel="noopener noreferrer">Original spreadsheet ↗</a><a href="${sourceMap}" target="_blank" rel="noopener noreferrer">Original map ↗</a><a href="https://www.urbanhikersf.com" target="_blank" rel="noopener noreferrer">Urban Hiker SF ↗</a><a href="https://www.buymeacoffee.com/urbanhikersf" target="_blank" rel="noopener noreferrer">Buy Alexandra a matcha ↗</a></div><h3>Keep in touch with Urban Hiker SF</h3><a href="mailto:info@urbanhikersf.com">info@urbanhikersf.com</a><p><a href="https://www.instagram.com/urbanhikersf/" target="_blank" rel="noopener noreferrer">Instagram: @urbanhikersf</a> · <a href="https://twitter.com/urbanhikersf" target="_blank" rel="noopener noreferrer">Twitter: @urbanhikersf</a><br><a href="https://www.facebook.com/urbanhikersf" target="_blank" rel="noopener noreferrer">Facebook: facebook.com/urbanhikersf</a></p><h3>The original rating legend</h3><p class="muted">Ratings describe a stairway’s character, not walking difficulty. Explanations below paraphrase the source legend.</p><div class="full-legend">${[5,4,3,2,1,0].map(r=>`<div><span class="legend-number" style="background:${colors[r]}">${r || '?'}</span><p><strong>${labels[r]}</strong><br>${legendDescriptions[r]}</p></div>`).join('')}</div><p class="muted">Beige rows in the original spreadsheet identify additions beyond the book’s index. This site does not reproduce that row formatting.</p><h3>About this collection</h3><p class="muted">Imported September 14, 2026; the source map says it was last updated July 26, 2026. Spreadsheet ratings take precedence for matched entries. Map-only entries retain their map rating. Entries without matched coordinates stay in the list. Locations and access may change; follow posted signs.</p><p class="muted">Photo previews and album links come from the source collection. Photo credits remain with their original creators; additional credits appear with individual entries. This site is not affiliated with Urban Hiker SF.</p></dialog>`;
+
+const map = L.map('map', {zoomControl: false, preferCanvas: true}).setView([37.759, -122.445], 12);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).on('tileerror', () => status('Map tiles could not load. You can still browse stairways in the list.')).addTo(map);
+L.control.zoom({position: 'topright'}).addTo(map);
+const markers = L.layerGroup().addTo(map);
+let selectedMarker: L.CircleMarker | undefined;
+function status(message: string) {el('#map-status').textContent = message;el('#map-status').hidden = false;}
+function hideDetail() {el('#detail').hidden = true; selected = undefined;if(selectedMarker)map.removeLayer(selectedMarker); history.replaceState(null, '', location.pathname + location.search);}
+function selectStair(stair: Stair) {
+  selected = stair;
+  history.replaceState(null, '', `#${stair.id}`);
+  const detail = el('#detail');
+  detail.hidden = false;
+  detail.innerHTML = `<button class="detail-close" aria-label="Close stairway details">${icon('close')}</button>${stair.image ? `<a class="detail-image-link" href="${escape(stair.photos[0])}" target="_blank" rel="noopener noreferrer"><img class="detail-image" src="${escape(stair.image)}" alt="${escape(stair.name)}"><span>Photos from the Urban Hiker SF collection ↗</span></a>` : ''}<div class="detail-content"><div class="eyebrow">${escape(stair.neighborhood)}</div><h2>${escape(stair.name)}</h2><div class="detail-tags"><span class="rating-tag" style="--dot:${colors[stair.rating]}">${stair.rating ? '★ ' + stair.rating + ' / 5' : '? Unrated'}</span><span>${labels[stair.rating]}</span>${stair.steps ? `<span>${escape(stair.steps)} steps</span>` : ''}</div>${stair.needsVerification ? '<p class="notice">This location needs verification in the original map.</p>' : ''}${stair.lat === null ? '<p class="notice">Listed in the spreadsheet; no matched map coordinates.</p>' : ''}<div class="detail-links">${stair.photos.map((url, i)=>`<a href="${escape(url)}" target="_blank" rel="noopener noreferrer">${icon('camera',16)} ${i ? 'More photos' : 'View original photos'} ↗</a>`).join('')}${stair.lat !== null ? `<a class="directions" href="https://www.google.com/maps/dir/?api=1&destination=${stair.lat},${stair.lng}&travelmode=walking" target="_blank" rel="noopener noreferrer">Walking directions ${icon('arrow',16)}</a>` : ''}</div>${!stair.photos.length ? '<p class="muted">No photos linked in the source collection yet.</p>' : ''}${/photo by/i.test(stair.photoNote) ? `<p class="muted">${escape(stair.photoNote.replace(/https:\/\/\S+/g, '').trim())}</p>` : ''}${'row' in stair ? `<a class="source-row" href="${sourceSheet}&range=B${stair.row}:F${stair.row}" target="_blank" rel="noopener noreferrer">View spreadsheet entry ↗</a>` : `<a class="source-row" href="${sourceMap}" target="_blank" rel="noopener noreferrer">View original map ↗</a>`}</div>`;
+  detail.querySelector('button')!.addEventListener('click', hideDetail);
+  handleImages(detail);
+  if(selectedMarker) map.removeLayer(selectedMarker);
+  if(stair.lat !== null && stair.lng !== null) {
+    map.setView([stair.lat, stair.lng], 16, {animate: false});
+    selectedMarker = L.circleMarker([stair.lat, stair.lng], {radius: 13, color: '#292e28', weight: 3, fillColor: colors[stair.rating], fillOpacity: 1}).addTo(map);
+    const offset = window.innerWidth > 760 ? 160 : 0;
+    map.panBy([-offset, 0], {animate: false});
+  }
+  if(window.innerWidth <= 760) el('.map-wrap').scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+function handleImages(parent: HTMLElement) {
+  parent.querySelectorAll<HTMLImageElement>('img').forEach(img => img.addEventListener('error', () => {img.hidden = true; img.parentElement?.classList.add('image-unavailable');}, {once: true}));
+}
+function renderList() {
+  const results = el('#results');
+  results.innerHTML = visible.length ? visible.slice(0, pageSize).map(stair => `<button class="stair-card" data-id="${stair.id}"><span class="thumbnail ${stair.image ? '' : 'no-photo'}" style="--tint:${colors[stair.rating]}">${stair.image ? `<img src="${escape(stair.image)}" alt="" loading="lazy">` : icon('stairs', 29)}<span class="small-rating" style="background:${colors[stair.rating]}">${stair.rating || '?'}</span></span><span class="card-copy"><span class="neighborhood">${escape(stair.neighborhood)}</span><span class="stair-name">${escape(stair.name)}</span><span class="card-meta">${stair.steps ? escape(stair.steps) + ' steps' : labels[stair.rating]}${stair.photos.length ? ` <span>· ${icon('camera',12)}</span>` : ''}${stair.lat === null ? ' · Not mapped' : ''}</span></span><span class="card-arrow">↗</span></button>`).join('') + (visible.length > pageSize ? '<button id="load-more">Show more stairways ↓</button>' : '') : '<div class="empty"><h3>No stairs found.</h3><p>Try another street, neighborhood, or rating.</p><button id="empty-reset">Clear filters</button></div>';
+  results.querySelectorAll<HTMLButtonElement>('[data-id]').forEach(button => button.addEventListener('click', () => selectStair(stairs.find(s => s.id === button.dataset.id)!)));
+  results.querySelector('#load-more')?.addEventListener('click', () => {pageSize += 45; renderList();});
+  results.querySelector('#empty-reset')?.addEventListener('click', reset);
+  handleImages(results);
+}
+function fit() {
+  const points = visible.filter(s=>s.lat!==null && s.lng!==null).map(s=>L.latLng(s.lat!, s.lng!));
+  if(points.length)map.fitBounds(L.latLngBounds(points), {padding: [45,45], maxZoom: 16, animate: false});
+  else status('These results have no matched map coordinates.');
+}
+function render(fitMap = false) {
+  el('#map-status').hidden = true;
+  visible = stairs.filter(stair => (rating === 'all' || stair.rating === Number(rating)) && (!neighborhood || stair.neighborhood === neighborhood) && (!photosOnly || stair.photos.length > 0) && `${stair.name} ${stair.neighborhood}`.toLowerCase().includes(query.toLowerCase().trim()));
+  pageSize = 45;
+  const mapped = visible.filter(s=>s.lat!==null).length;
+  el('#result-count').textContent = `${visible.length.toLocaleString()} stairways · ${mapped.toLocaleString()} on the map`;
+  el<HTMLButtonElement>('#surprise').disabled = !visible.length;
+  markers.clearLayers();
+  for(const stair of visible) {
+    if(stair.lat === null || stair.lng === null)continue;
+    const color = stair.needsVerification ? colors[0] : colors[stair.rating];
+    L.circleMarker([stair.lat, stair.lng], {radius: stair.rating === 5 ? 6.5 : 4.5, color: '#fff', weight: 1.3, fillColor: color, fillOpacity: .94}).bindTooltip(escape(stair.name), {direction: 'top'}).on('click', () => selectStair(stair)).addTo(markers);
+  }
+  document.querySelectorAll<HTMLButtonElement>('[data-rating]').forEach(button => {button.classList.toggle('active', button.dataset.rating === rating);button.setAttribute('aria-pressed', String(button.dataset.rating === rating));});
+  renderList();
+  if(selected && !visible.includes(selected)) hideDetail();
+  if(fitMap) fit();
+}
+function reset() {
+  rating = 'all'; query = ''; neighborhood = ''; photosOnly = false;
+  el<HTMLInputElement>('#search').value = '';el<HTMLSelectElement>('#neighborhood').value = '';el<HTMLInputElement>('#photos-only').checked = false;
+  hideDetail(); render(); map.setView([37.759, -122.445], 12);
+}
+el<HTMLInputElement>('#search').addEventListener('input', event => {query = (event.target as HTMLInputElement).value;render(true);});
+el<HTMLSelectElement>('#neighborhood').addEventListener('change', event => {neighborhood = (event.target as HTMLSelectElement).value;render(true);});
+el<HTMLInputElement>('#photos-only').addEventListener('change', event => {photosOnly = (event.target as HTMLInputElement).checked;render();});
+document.querySelectorAll<HTMLButtonElement>('[data-rating]').forEach(button => button.addEventListener('click', () => {rating = button.dataset.rating!;render();}));
+el('#reset').addEventListener('click', reset);
+el('#fit').addEventListener('click', fit);
+el('#surprise').addEventListener('click', () => {if(visible.length)selectStair(visible[Math.floor(Math.random() * visible.length)]);});
+el('#featured').addEventListener('click', () => selectStair(featured));
+const about = el<HTMLDialogElement>('#about');
+['about-button', 'credit-button', 'bottom-credit', 'legend-button'].forEach(id=> el('#'+id).addEventListener('click', () => about.showModal()));
+el('.dialog-close').addEventListener('click', () => about.close());
+about.addEventListener('click', event=>{if(event.target === about){const bounds=about.getBoundingClientRect();if(event.clientX<bounds.left||event.clientX>bounds.right||event.clientY<bounds.top||event.clientY>bounds.bottom)about.close();}});
+document.addEventListener('keydown', event => {if(event.key === 'Escape' && !about.open)hideDetail();});
+el('#locate').addEventListener('click', () => {
+  if(!navigator.geolocation){status('Your browser does not support location. Search a neighborhood instead.');return;}
+  status('Finding your location…');
+  navigator.geolocation.getCurrentPosition(position=> {
+    const {latitude, longitude} = position.coords;
+    if(latitude<37.6||latitude>37.9||longitude< -122.6||longitude> -122.3){status('You’re outside San Francisco. Pick a neighborhood to plan your next walk.');return;}
+    map.setView([latitude, longitude], 15);
+    L.circleMarker([latitude, longitude], {radius: 8, color: 'white', weight: 3, fillColor: '#2364d2', fillOpacity: 1}).bindTooltip('Your location').addTo(map);
+    status('Your location is shown in blue.');
+  }, ()=>status('Location unavailable. Allow location access or search a neighborhood.'), {timeout: 10000, maximumAge: 60000});
+});
+handleImages(el('#app'));
+render();
+const initial = stairs.find(s => s.id === location.hash.slice(1));
+if(initial)selectStair(initial);
+new ResizeObserver(()=>map.invalidateSize()).observe(el('#map'));
