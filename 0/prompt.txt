@@ -1,9 +1,1 @@
-i dont see the slop gate
-
----
-
-how do i get all the trails onto the deployed app merged? a lot of separate features on different branches
-
----
-
 how do i get all the trails onto the deployed app merged? a lot of separate features on different branches
