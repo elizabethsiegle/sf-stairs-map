@@ -1,0 +1,9 @@
+work on trail 7 and enable runners including a slop gate
+
+---
+
+amazing. commit and push please
+
+---
+
+on the deployed app right now, pictures are not showing when i explore by ratings that are not 5 or all stairs
