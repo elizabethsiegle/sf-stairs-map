@@ -1,9 +1,12 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './style.css';
+import './route-planner.css';
+import './multi-neighborhood.css';
 const { default: dataset } = await import('./stairs.json');
 
 type Stair = (typeof dataset.stairs)[number];
+type RouteStop = Stair & { lat: number; lng: number };
 const stairs: Stair[] = dataset.stairs;
 const colors = ['#242923', '#0288d1', '#558b2f', '#d2ad00', '#f57c00', '#e65100'];
 const labels = ['Needs verification', 'Simple & functional', 'Neighborhood character', 'Hidden gems', 'Something special', 'The Scheherazade category'];
@@ -27,8 +30,9 @@ const icon = (name: string, size = 20) => {
     locate: '<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 1v4m0 14v4M1 12h4m14 0h4"/>',
     close: '<path d="m6 6 12 12M6 18 18 6"/>',
     shuffle: '<path d="m3 5 5 0 8 14h5m-5-4 5 4-5 4M3 19h5L16 5h5m-5-4 5 4-5 4"/>',
-    elevation: '<path d="M3 19 9 9l4 6 3-4 5 8"/><path d="M3 21h18"/>',
-    external: '<path d="M14 3h7v7m0-7L10 14M10 3H3v18h18v-7"/>'
+    route: '<path d="M4 18c3-1 3-11 7-11s3 10 7 9 2-6 3-8"/><circle cx="4" cy="18" r="2"/><circle cx="21" cy="8" r="2"/>',
+    external: '<path d="M14 3h7v7m0-7L10 14M10 3H3v18h18v-7"/>',
+    elevation: '<path d="M3 19 9 9l4 6 3-4 5 8"/><path d="M3 21h18"/>'
   };
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.stairs}</svg>`;
 };
@@ -42,13 +46,16 @@ const neighborhoods = [...new Set(stairs.map(stair => stair.neighborhood))].sort
 const featured = stairs.find(stair => stair.name.includes('Tompkins') && stair.image) || stairs.find(stair => stair.image)!;
 let rating = 'all';
 let query = '';
-let neighborhood = '';
+const selectedNeighborhoods = new Set<string>();
 let photosOnly = false;
 let visible: Stair[] = [];
 let selected: Stair | undefined;
 let pageSize = 45;
 let nearbyOrigin: L.LatLng | undefined;
 let userMarker: L.CircleMarker | undefined;
+let routeStops: RouteStop[] = [];
+let routeArea = 'all';
+let routePreference = 'best';
 
 el('#app').innerHTML = `
   <header class="header">
@@ -75,11 +82,30 @@ el('#app').innerHTML = `
   <footer><span>SAN FRANCISCO, CALIFORNIA</span><span>made w/ <span class="heart">&lt;3</span> in sf</span><span>GO OUTSIDE. LOOK UP.</span></footer>
   <dialog id="about"><button class="dialog-close" aria-label="Close about dialog">${icon('close')}</button><div class="eyebrow">THE PEOPLE BEHIND THE PATHS</div><h2>A city discovered<br>one stairway at a time.</h2><p>This independent project pays homage to <strong>Alexandra Kenin and Urban Hiker SF</strong>, whose public stairway map and photo collection make these discoveries possible.</p><p>The collection is based on the index of <em>Stairway Walks of San Francisco</em> by <strong>Mary Burk and Adah Bakalinsky</strong>, with additional stairways documented by Urban Hiker SF.</p><div class="source-links"><a href="${sourceSheet}" target="_blank" rel="noopener noreferrer">Original spreadsheet ↗</a><a href="${sourceMap}" target="_blank" rel="noopener noreferrer">Original map ↗</a><a href="https://www.urbanhikersf.com" target="_blank" rel="noopener noreferrer">Urban Hiker SF ↗</a><a href="https://www.buymeacoffee.com/urbanhikersf" target="_blank" rel="noopener noreferrer">Buy Alexandra a matcha ↗</a></div><h3>Keep in touch with Urban Hiker SF</h3><a href="mailto:info@urbanhikersf.com">info@urbanhikersf.com</a><p><a href="https://www.instagram.com/urbanhikersf/" target="_blank" rel="noopener noreferrer">Instagram: @urbanhikersf</a> · <a href="https://twitter.com/urbanhikersf" target="_blank" rel="noopener noreferrer">Twitter: @urbanhikersf</a><br><a href="https://www.facebook.com/urbanhikersf" target="_blank" rel="noopener noreferrer">Facebook: facebook.com/urbanhikersf</a></p><h3>The original rating legend</h3><p class="muted">Ratings describe a stairway’s character, not walking difficulty. Explanations below paraphrase the source legend.</p><div class="full-legend">${[5,4,3,2,1,0].map(r=>`<div><span class="legend-number" style="background:${colors[r]}">${r || '?'}</span><p><strong>${labels[r]}</strong><br>${legendDescriptions[r]}</p></div>`).join('')}</div><p class="muted">Beige rows in the original spreadsheet identify additions beyond the book’s index. This site does not reproduce that row formatting.</p><h3>About this collection</h3><p class="muted">Imported September 14, 2026; the source map says it was last updated July 26, 2026. Spreadsheet ratings take precedence for matched entries. Map-only entries retain their map rating. Entries without matched coordinates stay in the list. Locations and access may change; follow posted signs.</p><p class="muted">Photo previews and album links come from the source collection. Photo credits remain with their original creators; additional credits appear with individual entries. This site is not affiliated with Urban Hiker SF.</p></dialog>`;
 
+const routeAreaOptions = `<option value="all">All of San Francisco</option><optgroup label="Broad areas"><option value="area:north">North & waterfront</option><option value="area:central">Central city</option><option value="area:west">Westside</option><option value="area:south">South & southeast</option></optgroup><optgroup label="Neighborhoods">${neighborhoods.map(name => `<option value="neighborhood:${escape(name)}">${escape(name)}</option>`).join('')}</optgroup>`;
+el('#neighborhood').parentElement!.outerHTML = `<details id="neighborhood-picker" class="neighborhood-picker"><summary>${icon('pin', 17)}<span id="neighborhood-label">All neighborhoods</span></summary><div class="neighborhood-menu"><div><span>Choose neighborhoods</span><button id="clear-neighborhoods" type="button">Clear</button></div>${neighborhoods.map(name => `<label><input type="checkbox" value="${escape(name)}">${escape(name)}</label>`).join('')}</div></details>`;
+el('.toolbar-right').insertAdjacentHTML('beforeend', `<button id="route-toggle" class="route-toggle" aria-expanded="false">${icon('route', 17)} Plan a stair route</button>`);
+el('.map-wrap').insertAdjacentHTML('beforeend', `<section id="route-planner" class="route-planner" hidden><button id="route-close" class="route-close" aria-label="Close route planner">${icon('close', 17)}</button><div class="eyebrow"><span></span> Walk planner</div><h2>A good day for stairs.</h2><p>Choose a neighborhood or a broad area, then make a compact loop.</p><div class="route-controls"><label>Route area <select id="route-area">${routeAreaOptions}</select></label><label>Stairways <select id="route-preference"><option value="best">Best rated when available</option><option value="nearby">Closest mix of ratings</option></select></label><label>Stops <select id="route-count">${[3,4,5,6,7,8].map(count => `<option value="${count}"${count === 4 ? ' selected' : ''}>${count} stairways</option>`).join('')}</select></label></div><button id="route-generate" class="route-generate">${icon('shuffle', 16)} Generate a route</button><p id="route-note" class="route-note"></p><div id="route-output" hidden><p id="route-distance"></p><ol id="route-stops"></ol><a id="route-directions" target="_blank" rel="noopener noreferrer">Continue in Google Maps ${icon('external', 15)}</a></div></section>`);
+
 const map = L.map('map', {zoomControl: false, preferCanvas: true}).setView([37.759, -122.445], 12);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).on('tileerror', () => status('Map tiles could not load. You can still browse stairways in the list.')).addTo(map);
 L.control.zoom({position: 'topright'}).addTo(map);
 const markers = L.layerGroup().addTo(map);
+const routeLines = L.layerGroup().addTo(map);
 let selectedMarker: L.CircleMarker | undefined;
+function routeCandidates(): RouteStop[] {
+  return stairs.filter((stair): stair is RouteStop => stair.lat !== null && stair.lng !== null).filter(stair => routeArea === 'all' || routeArea.startsWith('neighborhood:') ? stair.neighborhood === routeArea.slice(13) || routeArea === 'all' : routeArea === 'area:west' ? stair.lng <= -122.47 : routeArea === 'area:north' ? stair.lng > -122.47 && stair.lat >= 37.785 : routeArea === 'area:south' ? stair.lng > -122.47 && stair.lat < 37.745 : stair.lng > -122.47 && stair.lat >= 37.745 && stair.lat < 37.785);
+}
+function routeUrl(stops: RouteStop[]) { const params = new URLSearchParams({api:'1',origin:`${stops[0].lat},${stops[0].lng}`,destination:`${stops[0].lat},${stops[0].lng}`,travelmode:'walking'}); params.set('waypoints', stops.slice(1).map(stop => `${stop.lat},${stop.lng}`).join('|')); return `https://www.google.com/maps/dir/?${params}`; }
+function distanceMiles(a: RouteStop, b: RouteStop) { const r=Math.PI/180, lat=(b.lat-a.lat)*r, lng=(b.lng-a.lng)*r, value=Math.sin(lat/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(lng/2)**2; return 3958.8*2*Math.atan2(Math.sqrt(value),Math.sqrt(1-value)); }
+function generateRoute() {
+  const candidates=routeCandidates(), count=Math.min(Number(el<HTMLSelectElement>('#route-count').value), candidates.length);
+  if(candidates.length<2){el('#route-note').textContent='Choose another route area.';return;}
+  const best=routePreference==='best' ? candidates.filter(stop=>stop.rating===Math.max(...candidates.map(item=>item.rating))) : candidates;
+  const start=best[Math.floor(Math.random()*best.length)], remaining=candidates.filter(stop=>stop.id!==start.id); routeStops=[start];
+  while(routeStops.length<count&&remaining.length){const top=routePreference==='best'?remaining.filter(stop=>stop.rating===Math.max(...remaining.map(item=>item.rating))):remaining;const current=routeStops.at(-1)!;const choice=top.map(stop=>({stop,distance:distanceMiles(current,stop)})).sort((a,b)=>a.distance-b.distance)[Math.floor(Math.random()*Math.min(3,top.length))].stop;routeStops.push(choice);remaining.splice(remaining.findIndex(stop=>stop.id===choice.id),1);}
+  routeLines.clearLayers(); L.polyline([...routeStops,routeStops[0]].map(stop=>[stop.lat,stop.lng]),{color:'#ce4b2d',weight:4,dashArray:'7 7'}).addTo(routeLines); el('#route-distance').textContent=`${routeStops.length} stairways · best rated first`; el('#route-stops').innerHTML=routeStops.map(stop=>`<li>${escape(stop.name)} · ★ ${stop.rating}</li>`).join(''); el<HTMLAnchorElement>('#route-directions').href=routeUrl(routeStops); el('#route-output').hidden=false; map.fitBounds(L.latLngBounds(routeStops.map(stop=>[stop.lat,stop.lng])),{padding:[54,54],maxZoom:15});
+}
 function status(message: string) {el('#map-status').textContent = message;el('#map-status').hidden = false;}
 function hideDetail() {el('#detail').hidden = true; selected = undefined;if(selectedMarker)map.removeLayer(selectedMarker); history.replaceState(null, '', location.pathname + location.search);}
 function selectStair(stair: Stair) {
@@ -155,7 +181,7 @@ function fit() {
 }
 function render(fitMap = false) {
   el('#map-status').hidden = true;
-  visible = stairs.filter(stair => (rating === 'all' || stair.rating === Number(rating)) && (!neighborhood || stair.neighborhood === neighborhood) && (!photosOnly || Boolean(stair.image)) && `${stair.name} ${stair.neighborhood}`.toLowerCase().includes(query.toLowerCase().trim()));
+  visible = stairs.filter(stair => (rating === 'all' || stair.rating === Number(rating)) && (!selectedNeighborhoods.size || selectedNeighborhoods.has(stair.neighborhood)) && (!photosOnly || Boolean(stair.image)) && `${stair.name} ${stair.neighborhood}`.toLowerCase().includes(query.toLowerCase().trim()));
   if (nearbyOrigin) visible.sort((a, b) => (distanceFromNearbyOrigin(a) ?? Infinity) - (distanceFromNearbyOrigin(b) ?? Infinity));
   pageSize = 45;
   const mapped = visible.filter(s=>s.lat!==null).length;
@@ -174,19 +200,25 @@ function render(fitMap = false) {
   if(fitMap) fit();
 }
 function reset() {
-  rating = 'all'; query = ''; neighborhood = ''; photosOnly = false; nearbyOrigin = undefined;
+  rating = 'all'; query = ''; selectedNeighborhoods.clear(); photosOnly = false; nearbyOrigin = undefined;
   if (userMarker) { map.removeLayer(userMarker); userMarker = undefined; }
   el('#near-me').innerHTML = `${icon('locate', 18)}<span><strong>Stairs near me</strong><small>Use my location</small></span><span class="near-me-arrow">${icon('arrow', 16)}</span>`;
-  el<HTMLInputElement>('#search').value = '';el<HTMLSelectElement>('#neighborhood').value = '';el<HTMLInputElement>('#photos-only').checked = false;
+  el<HTMLInputElement>('#search').value = '';document.querySelectorAll<HTMLInputElement>('#neighborhood-picker input').forEach(input => input.checked = false);el('#neighborhood-label').textContent = 'All neighborhoods';el<HTMLInputElement>('#photos-only').checked = false;
   hideDetail(); render(); map.setView([37.759, -122.445], 12);
 }
 el<HTMLInputElement>('#search').addEventListener('input', event => {query = (event.target as HTMLInputElement).value;render(true);});
-el<HTMLSelectElement>('#neighborhood').addEventListener('change', event => {neighborhood = (event.target as HTMLSelectElement).value;render(true);});
+document.querySelectorAll<HTMLInputElement>('#neighborhood-picker input').forEach(input => input.addEventListener('change', () => { if(input.checked) selectedNeighborhoods.add(input.value);else selectedNeighborhoods.delete(input.value);el('#neighborhood-label').textContent=selectedNeighborhoods.size===1?[...selectedNeighborhoods][0]:selectedNeighborhoods.size?`${selectedNeighborhoods.size} neighborhoods`:'All neighborhoods';render(true); }));
+el('#clear-neighborhoods').addEventListener('click', () => {selectedNeighborhoods.clear();document.querySelectorAll<HTMLInputElement>('#neighborhood-picker input').forEach(input=>input.checked=false);el('#neighborhood-label').textContent='All neighborhoods';render(true);});
 el<HTMLInputElement>('#photos-only').addEventListener('change', event => {photosOnly = (event.target as HTMLInputElement).checked;render();});
 document.querySelectorAll<HTMLButtonElement>('[data-rating]').forEach(button => button.addEventListener('click', () => {rating = button.dataset.rating!;render();}));
 el('#reset').addEventListener('click', reset);
 el('#fit').addEventListener('click', fit);
 el('#surprise').addEventListener('click', () => {if(visible.length)selectStair(visible[Math.floor(Math.random() * visible.length)]);});
+el('#route-toggle').addEventListener('click', () => { const planner=el<HTMLElement>('#route-planner'); planner.hidden=!planner.hidden; });
+el('#route-close').addEventListener('click', () => el<HTMLElement>('#route-planner').hidden=true);
+el('#route-generate').addEventListener('click', generateRoute);
+el<HTMLSelectElement>('#route-area').addEventListener('change', event => {routeArea=(event.target as HTMLSelectElement).value;el('#route-output').hidden=true;});
+el<HTMLSelectElement>('#route-preference').addEventListener('change', event => {routePreference=(event.target as HTMLSelectElement).value;el('#route-output').hidden=true;});
 el<HTMLButtonElement>('#near-me').addEventListener('click', () => {
   const button = el<HTMLButtonElement>('#near-me');
   if (!navigator.geolocation) { status('Your browser does not support location. Search a neighborhood instead.'); return; }
