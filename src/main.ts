@@ -56,6 +56,7 @@ let selected: Stair | undefined;
 let pageSize = 45;
 let routeStops: RouteStop[] = [];
 let routeArea = 'all';
+let routePreference = 'best';
 
 el('#app').innerHTML = `
   <header class="header">
@@ -82,6 +83,8 @@ el('#app').innerHTML = `
   <footer><span>San Francisco, California</span><span>made w/ <span class="heart">&lt;3</span> in sf</span><span>Use good judgment on the stairs.</span></footer>
   <dialog id="about"><button class="dialog-close" aria-label="Close about dialog">${icon('close')}</button><div class="eyebrow">THE PEOPLE BEHIND THE PATHS</div><h2>A city discovered<br>one stairway at a time.</h2><p>This independent project pays homage to <strong>Alexandra Kenin and Urban Hiker SF</strong>, whose public stairway map and photo collection make these discoveries possible.</p><p>The collection is based on the index of <em>Stairway Walks of San Francisco</em> by <strong>Mary Burk and Adah Bakalinsky</strong>, with additional stairways documented by Urban Hiker SF.</p><div class="source-links"><a href="${sourceSheet}" target="_blank" rel="noopener noreferrer">Original spreadsheet ↗</a><a href="${sourceMap}" target="_blank" rel="noopener noreferrer">Original map ↗</a><a href="https://www.urbanhikersf.com" target="_blank" rel="noopener noreferrer">Urban Hiker SF ↗</a><a href="https://www.buymeacoffee.com/urbanhikersf" target="_blank" rel="noopener noreferrer">Buy Alexandra a matcha ↗</a></div><h3>Keep in touch with Urban Hiker SF</h3><a href="mailto:info@urbanhikersf.com">info@urbanhikersf.com</a><p><a href="https://www.instagram.com/urbanhikersf/" target="_blank" rel="noopener noreferrer">Instagram: @urbanhikersf</a> · <a href="https://twitter.com/urbanhikersf" target="_blank" rel="noopener noreferrer">Twitter: @urbanhikersf</a><br><a href="https://www.facebook.com/urbanhikersf" target="_blank" rel="noopener noreferrer">Facebook: facebook.com/urbanhikersf</a></p><h3>The original rating legend</h3><p class="muted">Ratings describe a stairway’s character, not walking difficulty. Explanations below paraphrase the source legend.</p><div class="full-legend">${[5,4,3,2,1,0].map(r=>`<div><span class="legend-number" style="background:${colors[r]}">${r || '?'}</span><p><strong>${labels[r]}</strong><br>${legendDescriptions[r]}</p></div>`).join('')}</div><p class="muted">Beige rows in the original spreadsheet identify additions beyond the book’s index. This site does not reproduce that row formatting.</p><h3>About this collection</h3><p class="muted">Imported September 14, 2026; the source map says it was last updated July 26, 2026. Spreadsheet ratings take precedence for matched entries. Map-only entries retain their map rating. Entries without matched coordinates stay in the list. Locations and access may change; follow posted signs.</p><p class="muted">Photo previews and album links come from the source collection. Photo credits remain with their original creators; additional credits appear with individual entries. This site is not affiliated with Urban Hiker SF.</p></dialog>`;
 
+el('.route-controls').insertAdjacentHTML('afterbegin', '<label class="route-preference">Stairways <select id="route-preference" aria-label="Stairway preference"><option value="best">Best rated when available</option><option value="nearby">Closest mix of ratings</option></select></label>');
+
 const map = L.map('map', {zoomControl: false, preferCanvas: true}).setView([37.759, -122.445], 12);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).on('tileerror', () => status('Map tiles could not load. You can still browse stairways in the list.')).addTo(map);
 L.control.zoom({position: 'topright'}).addTo(map);
@@ -99,8 +102,15 @@ function isInRouteArea(stair: RouteStop) {
 function routeCandidates(): RouteStop[] {
   return stairs.filter((stair): stair is RouteStop => stair.lat !== null && stair.lng !== null).filter(isInRouteArea);
 }
+function bestAvailable(stops: RouteStop[]) {
+  const highestRating = Math.max(...stops.map(stop => stop.rating));
+  return stops.filter(stop => stop.rating === highestRating);
+}
 function routeAreaLabel() {
   return el<HTMLSelectElement>('#route-area').selectedOptions[0]?.textContent || 'All of San Francisco';
+}
+function routePreferenceLabel() {
+  return el<HTMLSelectElement>('#route-preference').selectedOptions[0]?.textContent || 'Best rated when available';
 }
 function distanceMiles(a: RouteStop, b: RouteStop) {
   const radians = Math.PI / 180;
@@ -140,10 +150,11 @@ function showRoute() {
   const minutes = Math.max(12, Math.round(distance * 23));
   el('#route-distance').textContent = `About ${formatDistance(distance)}`;
   el('#route-time').textContent = `~${minutes} min of walking`;
-  el('#route-stops').innerHTML = routeStops.map(stop => `<li><button data-route-stop="${stop.id}"><span>${escape(stop.name)}</span><small>${escape(stop.neighborhood)}</small></button></li>`).join('');
+  el('#route-stops').innerHTML = routeStops.map(stop => `<li><button data-route-stop="${stop.id}"><span>${escape(stop.name)}</span><small>${escape(stop.neighborhood)} <b class="route-rating">★ ${stop.rating || '?'}</b></small></button></li>`).join('');
   el<HTMLAnchorElement>('#route-directions').href = routeUrl(routeStops);
   el('#route-output').hidden = false;
-  el('#route-note').textContent = `${routeAreaLabel()}: estimated distance follows the line between stops. Walking directions use the street network.`;
+  const preference = routePreference === 'best' && routeStops.some(stop => stop.rating >= 4) ? 'Favoring 4- and 5-rated stairways. ' : '';
+  el('#route-note').textContent = `${routeAreaLabel()} · ${routePreferenceLabel()}. ${preference}Estimated distance follows the line between stops. Walking directions use the street network.`;
   el('#route-stops').querySelectorAll<HTMLButtonElement>('[data-route-stop]').forEach(button => button.addEventListener('click', () => selectStair(routeStops.find(stop => stop.id === button.dataset.routeStop)!)));
   drawRoute();
   map.fitBounds(L.latLngBounds(routeStops.map(stop => [stop.lat, stop.lng])), {padding: [54, 54], maxZoom: 15, animate: false});
@@ -156,12 +167,16 @@ function generateRoute() {
     return;
   }
   const target = Math.min(count, candidates.length);
-  const start = selected && candidates.find(stair => stair.id === selected!.id) || candidates[Math.floor(Math.random() * candidates.length)];
+  const preferred = routePreference === 'best' ? bestAvailable(candidates) : [];
+  const startPool = preferred.length ? preferred : candidates;
+  const start = selected && startPool.find(stair => stair.id === selected!.id) || startPool[Math.floor(Math.random() * startPool.length)];
   const remaining = candidates.filter(stair => stair.id !== start.id);
   routeStops = [start];
   while (routeStops.length < target && remaining.length) {
     const current = routeStops.at(-1)!;
-    const nearby = remaining.map(stair => ({stair, distance: distanceMiles(current, stair)})).sort((a, b) => a.distance - b.distance);
+    const preferredRemaining = routePreference === 'best' && remaining.length ? bestAvailable(remaining) : [];
+    const pool = preferredRemaining.length ? preferredRemaining : remaining;
+    const nearby = pool.map(stair => ({stair, distance: distanceMiles(current, stair)})).sort((a, b) => a.distance - b.distance);
     const choice = nearby[Math.floor(Math.random() * Math.min(3, nearby.length))].stair;
     routeStops.push(choice);
     remaining.splice(remaining.findIndex(stair => stair.id === choice.id), 1);
@@ -255,6 +270,10 @@ el('#route-remix').addEventListener('click', generateRoute);
 el<HTMLSelectElement>('#route-area').addEventListener('change', event => {
   routeArea = (event.target as HTMLSelectElement).value;
   clearRoute(`Route area set to ${routeAreaLabel()}. Generate a route when you are ready.`);
+});
+el<HTMLSelectElement>('#route-preference').addEventListener('change', event => {
+  routePreference = (event.target as HTMLSelectElement).value;
+  clearRoute(`Route preference set to ${routePreferenceLabel()}. Generate a route when you are ready.`);
 });
 el('#featured').addEventListener('click', () => selectStair(featured));
 const about = el<HTMLDialogElement>('#about');

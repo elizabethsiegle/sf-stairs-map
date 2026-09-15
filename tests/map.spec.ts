@@ -51,8 +51,17 @@ test('route planner generates a route inside the selected neighborhood', async (
   await page.locator('#route-generate').click();
   await expect(page.locator('#route-output')).toBeVisible();
   await expect(page.locator('#route-stops li')).toHaveCount(4);
-  await expect.poll(() => page.locator('#route-stops small').allTextContents()).toEqual(['Mission', 'Mission', 'Mission', 'Mission']);
+  await expect.poll(() => page.locator('#route-stops small').allTextContents().then(stops => stops.every(stop => stop.startsWith('Mission')))).toBe(true);
   await expect(page.locator('#route-directions')).toHaveAttribute('href', /travelmode=walking/);
+});
+
+test('route planner favors the best-rated stairways by default', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#route-toggle').click();
+  await page.locator('#route-area').selectOption('neighborhood:Bernal Heights');
+  await expect(page.locator('#route-preference')).toHaveValue('best');
+  await page.locator('#route-generate').click();
+  await expect.poll(() => page.locator('.route-rating').allTextContents()).toEqual(['★ 5', '★ 5', '★ 5', '★ 5']);
 });
 
 test('sheet-only locations never get invented coordinates', async ({ page }) => {

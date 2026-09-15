@@ -5,7 +5,8 @@
   padding-top: 12px;
 }
 
-.route-area {
+.route-area,
+.route-preference {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -14,7 +15,8 @@
   color: #5d685a;
 }
 
-.route-area select {
+.route-area select,
+.route-preference select {
   max-width: 172px;
   border: 1px solid #d8d6cd;
   border-radius: 2px;
