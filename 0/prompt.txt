@@ -1,0 +1,1 @@
+stop running locally. the plan a stair route should have an option to select a neighborhood for the route or a general ares
