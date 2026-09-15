@@ -47,6 +47,8 @@ let photosOnly = false;
 let visible: Stair[] = [];
 let selected: Stair | undefined;
 let pageSize = 45;
+let nearbyOrigin: L.LatLng | undefined;
+let userMarker: L.CircleMarker | undefined;
 
 el('#app').innerHTML = `
   <header class="header">
@@ -59,7 +61,7 @@ el('#app').innerHTML = `
       <div class="intro-copy"><div class="eyebrow"><span></span> SAN FRANCISCO, ONE STEP AT A TIME</div>
         <h1>Take the <span>scenic way.</span></h1>
         <p>A thousand little ways to fall in love with this city.<br>Find hidden stairways, neighborhood gems, and a new view.</p>
-        <div class="intro-bottom"><span><strong>${stairs.filter(s => s.lat !== null).length.toLocaleString()}</strong> mapped stairways</span><span class="divider"></span><span>Inspired by <button id="credit-button">Urban Hiker SF ↗</button></span></div>
+        <div class="intro-bottom"><span><strong>${stairs.filter(s => s.lat !== null).length.toLocaleString()}</strong> mapped stairways</span><span class="divider"></span><span>Inspired by <button id="credit-button">Urban Hiker SF ↗</button></span></div><button id="near-me" class="near-me">${icon('locate', 18)}<span><strong>Stairs near me</strong><small>Use my location</small></span><span class="near-me-arrow">${icon('arrow', 16)}</span></button>
       </div>
       <button id="featured" class="featured" aria-label="Explore ${escape(featured.name)}"><img src="${escape(featured.image!)}" alt="${escape(featured.name)}" fetchpriority="high"><span class="featured-shade"></span><span class="photo-stamp">A DIFFERENT KIND OF SHORTCUT</span><span class="featured-caption"><span>${escape(featured.name.split('/')[0])}<small>${escape(featured.neighborhood)} · ★ ${featured.rating} rated</small></span><span class="circle-arrow">${icon('arrow')}</span></span></button>
     </section>
@@ -132,9 +134,15 @@ async function calculateElevation(stair: Stair, detail: HTMLElement) {
 function handleImages(parent: HTMLElement) {
   parent.querySelectorAll<HTMLImageElement>('img').forEach(img => img.addEventListener('error', () => {img.hidden = true; img.parentElement?.classList.add('image-unavailable');}, {once: true}));
 }
+function distanceFromNearbyOrigin(stair: Stair) {
+  return nearbyOrigin && stair.lat !== null && stair.lng !== null ? nearbyOrigin.distanceTo([stair.lat, stair.lng]) : undefined;
+}
+function formatNearbyDistance(meters: number) {
+  return meters < 1609 ? `${Math.round(meters / 10) * 10} m away` : `${(meters / 1609.34).toFixed(1)} mi away`;
+}
 function renderList() {
   const results = el('#results');
-  results.innerHTML = visible.length ? visible.slice(0, pageSize).map(stair => `<button class="stair-card" data-id="${stair.id}"><span class="thumbnail ${stair.image ? '' : 'no-photo'}" style="--tint:${colors[stair.rating]}">${stair.image ? `<img src="${escape(stair.image)}" alt="" loading="lazy">` : icon('stairs', 29)}<span class="small-rating" style="background:${colors[stair.rating]}">${stair.rating || '?'}</span></span><span class="card-copy"><span class="neighborhood">${escape(stair.neighborhood)}</span><span class="stair-name">${escape(stair.name)}</span><span class="card-meta">${stair.steps ? escape(stair.steps) + ' steps' : labels[stair.rating]}${stair.photos.length ? ` <span>· ${icon('camera',12)}</span>` : ''}${stair.lat === null ? ' · Not mapped' : ''}</span></span><span class="card-arrow">↗</span></button>`).join('') + (visible.length > pageSize ? '<button id="load-more">Show more stairways ↓</button>' : '') : '<div class="empty"><h3>No stairs found.</h3><p>Try another street, neighborhood, or rating.</p><button id="empty-reset">Clear filters</button></div>';
+  results.innerHTML = visible.length ? visible.slice(0, pageSize).map(stair => { const distance = distanceFromNearbyOrigin(stair); return `<button class="stair-card" data-id="${stair.id}"><span class="thumbnail ${stair.image ? '' : 'no-photo'}" style="--tint:${colors[stair.rating]}">${stair.image ? `<img src="${escape(stair.image)}" alt="" loading="lazy">` : icon('stairs', 29)}<span class="small-rating" style="background:${colors[stair.rating]}">${stair.rating || '?'}</span></span><span class="card-copy"><span class="neighborhood">${escape(stair.neighborhood)}</span><span class="stair-name">${escape(stair.name)}</span><span class="card-meta">${distance === undefined ? (stair.steps ? escape(stair.steps) + ' steps' : labels[stair.rating]) : `<b class="nearby-distance">${formatNearbyDistance(distance)}</b>`}${stair.photos.length ? ` <span>· ${icon('camera',12)}</span>` : ''}${stair.lat === null ? ' · Not mapped' : ''}</span></span><span class="card-arrow">↗</span></button>`; }).join('') + (visible.length > pageSize ? '<button id="load-more">Show more stairways ↓</button>' : '') : '<div class="empty"><h3>No stairs found.</h3><p>Try another street, neighborhood, or rating.</p><button id="empty-reset">Clear filters</button></div>';
   results.querySelectorAll<HTMLButtonElement>('[data-id]').forEach(button => button.addEventListener('click', () => selectStair(stairs.find(s => s.id === button.dataset.id)!)));
   results.querySelector('#load-more')?.addEventListener('click', () => {pageSize += 45; renderList();});
   results.querySelector('#empty-reset')?.addEventListener('click', reset);
@@ -148,9 +156,11 @@ function fit() {
 function render(fitMap = false) {
   el('#map-status').hidden = true;
   visible = stairs.filter(stair => (rating === 'all' || stair.rating === Number(rating)) && (!neighborhood || stair.neighborhood === neighborhood) && (!photosOnly || Boolean(stair.image)) && `${stair.name} ${stair.neighborhood}`.toLowerCase().includes(query.toLowerCase().trim()));
+  if (nearbyOrigin) visible.sort((a, b) => (distanceFromNearbyOrigin(a) ?? Infinity) - (distanceFromNearbyOrigin(b) ?? Infinity));
   pageSize = 45;
   const mapped = visible.filter(s=>s.lat!==null).length;
-  el('#result-count').textContent = `${visible.length.toLocaleString()} stairways · ${mapped.toLocaleString()} on the map`;
+  el('#result-count').textContent = nearbyOrigin ? `${visible.length.toLocaleString()} stairways · sorted by distance` : `${visible.length.toLocaleString()} stairways · ${mapped.toLocaleString()} on the map`;
+  el('.results-heading h2').textContent = nearbyOrigin ? 'Stairs near you' : 'Your next discovery';
   el<HTMLButtonElement>('#surprise').disabled = !visible.length;
   markers.clearLayers();
   for(const stair of visible) {
@@ -164,7 +174,9 @@ function render(fitMap = false) {
   if(fitMap) fit();
 }
 function reset() {
-  rating = 'all'; query = ''; neighborhood = ''; photosOnly = false;
+  rating = 'all'; query = ''; neighborhood = ''; photosOnly = false; nearbyOrigin = undefined;
+  if (userMarker) { map.removeLayer(userMarker); userMarker = undefined; }
+  el('#near-me').innerHTML = `${icon('locate', 18)}<span><strong>Stairs near me</strong><small>Use my location</small></span><span class="near-me-arrow">${icon('arrow', 16)}</span>`;
   el<HTMLInputElement>('#search').value = '';el<HTMLSelectElement>('#neighborhood').value = '';el<HTMLInputElement>('#photos-only').checked = false;
   hideDetail(); render(); map.setView([37.759, -122.445], 12);
 }
@@ -175,23 +187,29 @@ document.querySelectorAll<HTMLButtonElement>('[data-rating]').forEach(button => 
 el('#reset').addEventListener('click', reset);
 el('#fit').addEventListener('click', fit);
 el('#surprise').addEventListener('click', () => {if(visible.length)selectStair(visible[Math.floor(Math.random() * visible.length)]);});
+el<HTMLButtonElement>('#near-me').addEventListener('click', () => {
+  const button = el<HTMLButtonElement>('#near-me');
+  if (!navigator.geolocation) { status('Your browser does not support location. Search a neighborhood instead.'); return; }
+  button.disabled = true;
+  button.innerHTML = `${icon('locate', 18)}<span><strong>Finding nearby stairs…</strong><small>Waiting for your location</small></span>`;
+  navigator.geolocation.getCurrentPosition(position => {
+    const { latitude, longitude } = position.coords;
+    if (latitude < 37.6 || latitude > 37.9 || longitude < -122.6 || longitude > -122.3) { status('You’re outside San Francisco. Pick a neighborhood to plan your next walk.'); button.disabled = false; button.innerHTML = `${icon('locate', 18)}<span><strong>Stairs near me</strong><small>Use my location</small></span><span class="near-me-arrow">${icon('arrow', 16)}</span>`; return; }
+    nearbyOrigin = L.latLng(latitude, longitude);
+    if (userMarker) map.removeLayer(userMarker);
+    userMarker = L.circleMarker(nearbyOrigin, { radius: 8, color: 'white', weight: 3, fillColor: '#2364d2', fillOpacity: 1 }).bindTooltip('You are here').addTo(map);
+    button.disabled = false;
+    button.innerHTML = `${icon('locate', 18)}<span><strong>Showing stairs near you</strong><small>Sorted by distance</small></span><span class="near-me-arrow">${icon('arrow', 16)}</span>`;
+    render(); map.setView(nearbyOrigin, 14); status('Stairways are sorted by straight-line distance from your location.');
+  }, () => { button.disabled = false; button.innerHTML = `${icon('locate', 18)}<span><strong>Stairs near me</strong><small>Allow location access</small></span><span class="near-me-arrow">${icon('arrow', 16)}</span>`; status('Location unavailable. Allow location access to see stairs near you.'); }, { timeout: 10000, maximumAge: 60000 });
+});
 el('#featured').addEventListener('click', () => selectStair(featured));
 const about = el<HTMLDialogElement>('#about');
 ['about-button', 'credit-button', 'bottom-credit', 'legend-button'].forEach(id=> el('#'+id).addEventListener('click', () => about.showModal()));
 el('.dialog-close').addEventListener('click', () => about.close());
 about.addEventListener('click', event=>{if(event.target === about){const bounds=about.getBoundingClientRect();if(event.clientX<bounds.left||event.clientX>bounds.right||event.clientY<bounds.top||event.clientY>bounds.bottom)about.close();}});
 document.addEventListener('keydown', event => {if(event.key === 'Escape' && !about.open)hideDetail();});
-el('#locate').addEventListener('click', () => {
-  if(!navigator.geolocation){status('Your browser does not support location. Search a neighborhood instead.');return;}
-  status('Finding your location…');
-  navigator.geolocation.getCurrentPosition(position=> {
-    const {latitude, longitude} = position.coords;
-    if(latitude<37.6||latitude>37.9||longitude< -122.6||longitude> -122.3){status('You’re outside San Francisco. Pick a neighborhood to plan your next walk.');return;}
-    map.setView([latitude, longitude], 15);
-    L.circleMarker([latitude, longitude], {radius: 8, color: 'white', weight: 3, fillColor: '#2364d2', fillOpacity: 1}).bindTooltip('Your location').addTo(map);
-    status('Your location is shown in blue.');
-  }, ()=>status('Location unavailable. Allow location access or search a neighborhood.'), {timeout: 10000, maximumAge: 60000});
-});
+el('#locate').addEventListener('click', () => el<HTMLButtonElement>('#near-me').click());
 handleImages(el('#app'));
 render();
 const initial = stairs.find(s => s.id === location.hash.slice(1));

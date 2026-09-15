@@ -51,6 +51,26 @@ test('photo preview filter only shows stairways with visible preview images', as
   await expect(page.locator('.stair-card .thumbnail img')).toHaveCount(45);
 });
 
+test('near me sorts mapped stairways by distance', async ({ page }) => {
+  await page.context().grantPermissions(['geolocation']);
+  await page.context().setGeolocation({ latitude: 37.759, longitude: -122.435 });
+  await page.goto('/');
+  await page.locator('#near-me').click();
+  await expect(page.locator('.results-heading h2')).toHaveText('Stairs near you');
+  await expect(page.locator('#result-count')).toContainText('sorted by distance');
+  await expect(page.locator('.stair-card').first().locator('.nearby-distance')).toContainText('away');
+  await expect.poll(() => page.locator('.stair-card img').evaluateAll(images => images.every(image => image.complete && image.naturalWidth > 0))).toBe(true);
+});
+
+test('map location control starts the nearby-stairs flow', async ({ page }) => {
+  await page.context().grantPermissions(['geolocation']);
+  await page.context().setGeolocation({ latitude: 37.759, longitude: -122.435 });
+  await page.goto('/');
+  await page.locator('#locate').click();
+  await expect(page.locator('.results-heading h2')).toHaveText('Stairs near you');
+  await expect(page.locator('.stair-card').first().locator('.nearby-distance')).toContainText('away');
+});
+
 test('sheet-only locations never get invented coordinates', async ({ page }) => {
   await page.goto('/');
   await page.locator('#search').fill('Glen Canyon Park. Coyote Crags Trail.');
