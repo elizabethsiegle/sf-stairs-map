@@ -59,6 +59,7 @@ test('near me sorts mapped stairways by distance', async ({ page }) => {
   await expect(page.locator('.results-heading h2')).toHaveText('Stairs near you');
   await expect(page.locator('#result-count')).toContainText('sorted by distance');
   await expect(page.locator('.stair-card').first().locator('.nearby-distance')).toContainText('away');
+  await expect.poll(() => page.locator('.stair-card img').evaluateAll(images => images.every(image => image.complete && image.naturalWidth > 0))).toBe(true);
 });
 
 test('map location control starts the nearby-stairs flow', async ({ page }) => {
