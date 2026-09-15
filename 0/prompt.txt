@@ -1,9 +1,1 @@
-merge it and deploy please
-
----
-
-amazing. make a trail so the big stairway image above  the map id a random different pic each time and also the arrow works so it's an array of 3 random stairway pics
-
----
-
 amazing. make a trail so the big stairway image above  the map id a random different pic each time and also the arrow works so it's an array of 3 random stairway pics
