@@ -16,7 +16,7 @@
     "kind": "trail_prompt"
   },
   "prompt": {
-    "template": "You are a security risk evaluator. Analyze the changes on branch \"{{branch}}\" compared to \"{{base_branch}}\".\n\nRun `git diff origin/{{base_branch}}...HEAD` to see the changes, then score **security risk** from 0 to 100 (review adversarially; higher = more suspicious or insecure).\n\nOutput ONLY this JSON object as the very last line of your response:\n\n{\"value\": <number 0-100>, \"rationale\": \"<1-2 sentence explanation>\"}"
+    "template": "Slop gate: Treat generic AI filler, invented claims or precision, placeholder functionality, duplicated controls, and user-facing behavior described but not implemented as evidence to investigate only when it creates a concrete security-relevant failure. Do not score subjective copy or visual taste as security risk.\n\nYou are a security risk evaluator. Analyze the changes on branch \"{{branch}}\" compared to \"{{base_branch}}\".\n\nRun `git diff origin/{{base_branch}}...HEAD` to see the changes, then score **security risk** from 0 to 100 (review adversarially; higher = more suspicious or insecure).\n\nOutput ONLY this JSON object as the very last line of your response:\n\n{\"value\": <number 0-100>, \"rationale\": \"<1-2 sentence explanation>\"}"
   },
   "select": {
     "trigger_types": [

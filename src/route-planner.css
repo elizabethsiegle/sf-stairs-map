@@ -1,0 +1,30 @@
+.route-controls {
+  display: grid;
+  gap: 9px;
+  border-top: 1px solid #e2ded5;
+  padding-top: 12px;
+}
+
+.route-area {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 10px;
+  color: #5d685a;
+}
+
+.route-area select {
+  max-width: 172px;
+  border: 1px solid #d8d6cd;
+  border-radius: 2px;
+  padding: 6px;
+  color: #374137;
+  background: #fffdf8;
+  font-size: 10px;
+}
+
+.route-controls .route-count {
+  border-top: 0;
+  padding-top: 0;
+}

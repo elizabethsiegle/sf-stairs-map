@@ -17,7 +17,7 @@
     "kind": "trail_prompt"
   },
   "prompt": {
-    "template": "You are a code review assistant. Analyze the changes on branch \"{{branch}}\" compared to \"{{base_branch}}\".\n\nRun `git diff origin/{{base_branch}}...HEAD`, then identify the most critical areas a human reviewer should focus on.\n\nOutput ONLY this JSON object as the very last line:\n\n{\"files\": [{\"path\": \"<file path>\", \"lines\": \"<optional line range>\", \"why\": \"<brief reason>\"}]}\n\nIf no critical areas need attention, output: {\"files\": []}"
+    "template": "Slop gate: Treat generic AI filler, invented claims or precision, placeholder functionality, duplicated controls, and user-facing behavior described but not implemented as defects only when the diff provides a concrete, actionable user-facing failure. Do not create taste-based or speculative comments.\n\nYou are a code review assistant. Analyze the changes on branch \"{{branch}}\" compared to \"{{base_branch}}\".\n\nRun `git diff origin/{{base_branch}}...HEAD`, then identify the most critical areas a human reviewer should focus on.\n\nOutput ONLY this JSON object as the very last line:\n\n{\"files\": [{\"path\": \"<file path>\", \"lines\": \"<optional line range>\", \"why\": \"<brief reason>\"}]}\n\nIf no critical areas need attention, output: {\"files\": []}"
   },
   "select": {
     "trigger_types": [

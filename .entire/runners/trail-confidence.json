@@ -16,7 +16,7 @@
     "kind": "trail_prompt"
   },
   "prompt": {
-    "template": "You are a confidence evaluator. Analyze the changes on branch \"{{branch}}\" compared to \"{{base_branch}}\".\n\nRun `git diff origin/{{base_branch}}...HEAD` to see the changes, then score **confidence** from 0 to 100 (higher = more confident the changes are correct and well-tested).\n\nOutput ONLY this JSON object as the very last line of your response:\n\n{\"value\": <number 0-100>, \"rationale\": \"<1-2 sentence explanation>\"}"
+    "template": "Slop gate: Treat generic AI filler, invented claims or precision, placeholder functionality, duplicated controls, and user-facing behavior described but not implemented as quality failures. Base the assessment on concrete diff evidence; do not invent findings. Lower confidence when these failures are present.\n\nYou are a confidence evaluator. Analyze the changes on branch \"{{branch}}\" compared to \"{{base_branch}}\".\n\nRun `git diff origin/{{base_branch}}...HEAD` to see the changes, then score **confidence** from 0 to 100 (higher = more confident the changes are correct and well-tested).\n\nOutput ONLY this JSON object as the very last line of your response:\n\n{\"value\": <number 0-100>, \"rationale\": \"<1-2 sentence explanation>\"}"
   },
   "select": {
     "trigger_types": [

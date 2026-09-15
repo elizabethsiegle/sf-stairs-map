@@ -43,6 +43,17 @@ test('photos load and mobile map stays inside the viewport', async ({ page }) =>
   await page.screenshot({path:'test-results/mobile.png',fullPage:true});
 });
 
+test('route planner generates a route inside the selected neighborhood', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#route-toggle').click();
+  await page.locator('#route-area').selectOption('neighborhood:Mission');
+  await page.locator('#route-generate').click();
+  await expect(page.locator('#route-output')).toBeVisible();
+  await expect(page.locator('#route-stops li')).toHaveCount(4);
+  await expect.poll(() => page.locator('#route-stops small').allTextContents()).toEqual(['Mission', 'Mission', 'Mission', 'Mission']);
+  await expect(page.locator('#route-directions')).toHaveAttribute('href', /travelmode=walking/);
+});
+
 test('sheet-only locations never get invented coordinates', async ({ page }) => {
   await page.goto('/');
   await page.locator('#search').fill('Glen Canyon Park. Coyote Crags Trail.');
