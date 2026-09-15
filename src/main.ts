@@ -43,7 +43,9 @@ function el<T extends HTMLElement>(selector: string): T {
   return node;
 }
 const neighborhoods = [...new Set(stairs.map(stair => stair.neighborhood))].sort();
-const featured = stairs.find(stair => stair.name.includes('Tompkins') && stair.image) || stairs.find(stair => stair.image)!;
+const featuredStairs = stairs.filter(stair => stair.image).sort(() => Math.random() - .5).slice(0, 3);
+let featuredIndex = 0;
+let featured = featuredStairs[featuredIndex];
 let rating = 'all';
 let query = '';
 const selectedNeighborhoods = new Set<string>();
@@ -70,7 +72,7 @@ el('#app').innerHTML = `
         <p>A thousand little ways to fall in love with this city.<br>Find hidden stairways, neighborhood gems, and a new view.</p>
         <div class="intro-bottom"><span><strong>${stairs.filter(s => s.lat !== null).length.toLocaleString()}</strong> mapped stairways</span><span class="divider"></span><span>Inspired by <button id="credit-button">Urban Hiker SF ↗</button></span></div><button id="near-me" class="near-me">${icon('locate', 18)}<span><strong>Stairs near me</strong><small>Use my location</small></span><span class="near-me-arrow">${icon('arrow', 16)}</span></button>
       </div>
-      <button id="featured" class="featured" aria-label="Explore ${escape(featured.name)}"><img src="${escape(featured.image!)}" alt="${escape(featured.name)}" fetchpriority="high"><span class="featured-shade"></span><span class="photo-stamp">A DIFFERENT KIND OF SHORTCUT</span><span class="featured-caption"><span>${escape(featured.name.split('/')[0])}<small>${escape(featured.neighborhood)} · ★ ${featured.rating} rated</small></span><span class="circle-arrow">${icon('arrow')}</span></span></button>
+      <button id="featured" class="featured" data-featured-id="${featured.id}" aria-label="Explore ${escape(featured.name)}"><img src="${escape(featured.image!)}" alt="${escape(featured.name)}" fetchpriority="high"><span class="featured-shade"></span><span class="photo-stamp">A DIFFERENT KIND OF SHORTCUT</span><span class="featured-caption"><span>${escape(featured.name.split('/')[0])}<small>${escape(featured.neighborhood)} · ★ ${featured.rating} rated</small></span><span class="circle-arrow" title="Show another featured stairway">${icon('arrow')}</span></span></button>
     </section>
     <section class="explorer" aria-label="Explore stairways">
       <div class="toolbar"><label class="search">${icon('search')}<input id="search" type="search" placeholder="Search a stairway, street, or neighborhood" aria-label="Search stairways"></label><div class="toolbar-right"><label class="select-wrap">${icon('pin', 17)}<select id="neighborhood" aria-label="Neighborhood"><option value="">All neighborhoods</option>${neighborhoods.map(n => `<option>${escape(n)}</option>`).join('')}</select></label><button id="surprise" class="surprise">${icon('shuffle', 17)} Surprise me</button></div></div>
@@ -160,6 +162,13 @@ async function calculateElevation(stair: Stair, detail: HTMLElement) {
 function handleImages(parent: HTMLElement) {
   parent.querySelectorAll<HTMLImageElement>('img').forEach(img => img.addEventListener('error', () => {img.hidden = true; img.parentElement?.classList.add('image-unavailable');}, {once: true}));
 }
+function renderFeatured() {
+  const button = el<HTMLButtonElement>('#featured');
+  button.dataset.featuredId = featured.id;
+  button.setAttribute('aria-label', `Explore ${featured.name}`);
+  button.innerHTML = `<img src="${escape(featured.image!)}" alt="${escape(featured.name)}"><span class="featured-shade"></span><span class="photo-stamp">A DIFFERENT KIND OF SHORTCUT</span><span class="featured-caption"><span>${escape(featured.name.split('/')[0])}<small>${escape(featured.neighborhood)} · ★ ${featured.rating} rated</small></span><span class="circle-arrow" title="Show another featured stairway">${icon('arrow')}</span></span>`;
+  handleImages(button);
+}
 function distanceFromNearbyOrigin(stair: Stair) {
   return nearbyOrigin && stair.lat !== null && stair.lng !== null ? nearbyOrigin.distanceTo([stair.lat, stair.lng]) : undefined;
 }
@@ -235,7 +244,16 @@ el<HTMLButtonElement>('#near-me').addEventListener('click', () => {
     render(); map.setView(nearbyOrigin, 14); status('Stairways are sorted by straight-line distance from your location.');
   }, () => { button.disabled = false; button.innerHTML = `${icon('locate', 18)}<span><strong>Stairs near me</strong><small>Allow location access</small></span><span class="near-me-arrow">${icon('arrow', 16)}</span>`; status('Location unavailable. Allow location access to see stairs near you.'); }, { timeout: 10000, maximumAge: 60000 });
 });
-el('#featured').addEventListener('click', () => selectStair(featured));
+el('#featured').addEventListener('click', event => {
+  if ((event.target as HTMLElement).closest('.circle-arrow')) {
+    event.preventDefault();
+    featuredIndex = (featuredIndex + 1) % featuredStairs.length;
+    featured = featuredStairs[featuredIndex];
+    renderFeatured();
+    return;
+  }
+  selectStair(featured);
+});
 const about = el<HTMLDialogElement>('#about');
 ['about-button', 'credit-button', 'bottom-credit', 'legend-button'].forEach(id=> el('#'+id).addEventListener('click', () => about.showModal()));
 el('.dialog-close').addEventListener('click', () => about.close());

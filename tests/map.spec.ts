@@ -44,6 +44,16 @@ test('photos load and mobile map stays inside the viewport', async ({ page }) =>
   await page.screenshot({path:'test-results/mobile.png',fullPage:true});
 });
 
+test('featured stairway arrow cycles through three random choices', async ({ page }) => {
+  await page.goto('/');
+  const ids = [await page.locator('#featured').getAttribute('data-featured-id')];
+  await page.locator('#featured .circle-arrow').click();
+  ids.push(await page.locator('#featured').getAttribute('data-featured-id'));
+  await page.locator('#featured .circle-arrow').click();
+  ids.push(await page.locator('#featured').getAttribute('data-featured-id'));
+  expect(new Set(ids).size).toBe(3);
+});
+
 test('photo preview filter only shows stairways with visible preview images', async ({ page }) => {
   await page.goto('/');
   await page.locator('#photos-only').check();
