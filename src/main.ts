@@ -27,6 +27,7 @@ const icon = (name: string, size = 20) => {
     locate: '<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 1v4m0 14v4M1 12h4m14 0h4"/>',
     close: '<path d="m6 6 12 12M6 18 18 6"/>',
     shuffle: '<path d="m3 5 5 0 8 14h5m-5-4 5 4-5 4M3 19h5L16 5h5m-5-4 5 4-5 4"/>',
+    elevation: '<path d="M3 19 9 9l4 6 3-4 5 8"/><path d="M3 21h18"/>',
     external: '<path d="M14 3h7v7m0-7L10 14M10 3H3v18h18v-7"/>'
   };
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.stairs}</svg>`;
@@ -49,27 +50,27 @@ let pageSize = 45;
 
 el('#app').innerHTML = `
   <header class="header">
-    <a class="brand" href="/" aria-label="SF Stairs home"><span class="brand-icon">${icon('stairs', 25)}</span><span>SF Stairs</span></a>
-    <div class="header-note">San Francisco public stairways</div>
-    <button id="about-button" class="text-button">About this map ${icon('arrow', 16)}</button>
+    <a class="brand" href="/" aria-label="SF Stairs home"><span class="brand-icon">${icon('stairs', 28)}</span><span>sf stairs<span class="brand-dot">.</span></span></a>
+    <div class="header-note">A FIELD GUIDE TO THE CITY’S STAIRWAYS</div>
+    <button id="about-button" class="text-button">The story behind the steps ${icon('arrow', 16)}</button>
   </header>
   <main>
     <section class="intro">
-      <div class="intro-copy"><div class="eyebrow"><span></span> San Francisco’s public stairways</div>
-        <h1>Find the stairs<br>worth taking.</h1>
-        <p>A working map of the city’s shortcuts, climbs, painted steps, and tucked-away paths. Pick a neighborhood, zoom in, and see what’s there.</p>
-        <div class="intro-bottom"><span><strong>${stairs.filter(s => s.lat !== null).length.toLocaleString()}</strong> mapped locations</span><span class="divider"></span><span>Source collection: <button id="credit-button">Urban Hiker SF ↗</button></span></div>
+      <div class="intro-copy"><div class="eyebrow"><span></span> SAN FRANCISCO, ONE STEP AT A TIME</div>
+        <h1>Take the <span>scenic way.</span></h1>
+        <p>A thousand little ways to fall in love with this city.<br>Find hidden stairways, neighborhood gems, and a new view.</p>
+        <div class="intro-bottom"><span><strong>${stairs.filter(s => s.lat !== null).length.toLocaleString()}</strong> mapped stairways</span><span class="divider"></span><span>Inspired by <button id="credit-button">Urban Hiker SF ↗</button></span></div>
       </div>
-      <button id="featured" class="featured" aria-label="Explore ${escape(featured.name)}"><img src="${escape(featured.image!)}" alt="${escape(featured.name)}" fetchpriority="high"><span class="featured-shade"></span><span class="photo-stamp">Featured stairway</span><span class="featured-caption"><span>${escape(featured.name.split('/')[0])}<small>${escape(featured.neighborhood)} · ★ ${featured.rating} rated</small></span><span class="circle-arrow">${icon('arrow')}</span></span></button>
+      <button id="featured" class="featured" aria-label="Explore ${escape(featured.name)}"><img src="${escape(featured.image!)}" alt="${escape(featured.name)}" fetchpriority="high"><span class="featured-shade"></span><span class="photo-stamp">A DIFFERENT KIND OF SHORTCUT</span><span class="featured-caption"><span>${escape(featured.name.split('/')[0])}<small>${escape(featured.neighborhood)} · ★ ${featured.rating} rated</small></span><span class="circle-arrow">${icon('arrow')}</span></span></button>
     </section>
     <section class="explorer" aria-label="Explore stairways">
       <div class="toolbar"><label class="search">${icon('search')}<input id="search" type="search" placeholder="Search a stairway, street, or neighborhood" aria-label="Search stairways"></label><div class="toolbar-right"><label class="select-wrap">${icon('pin', 17)}<select id="neighborhood" aria-label="Neighborhood"><option value="">All neighborhoods</option>${neighborhoods.map(n => `<option>${escape(n)}</option>`).join('')}</select></label><button id="surprise" class="surprise">${icon('shuffle', 17)} Surprise me</button></div></div>
-      <div class="filter-bar"><span class="filter-label">Rating</span><div class="rating-filters"><button class="chip active" data-rating="all" aria-pressed="true">All</button>${[5,4,3,2,1].map(r => `<button class="chip" data-rating="${r}" aria-pressed="false"><span class="dot" style="--dot:${colors[r]}"></span>${r}<span class="chip-extra"> · ${['','','Favorite','Hidden gem','Notable','Everyday'][r] || 'Everyday'}</span></button>`).join('')}</div><label class="photo-filter"><input type="checkbox" id="photos-only"> Photo links only</label></div>
-      <div class="explorer-body"><aside class="results-panel"><div class="results-heading"><div><h2>Stairways</h2><p id="result-count" aria-live="polite"></p></div><button id="reset" class="reset">Clear filters</button></div><div id="results" class="results"></div></aside><div class="map-wrap"><div id="map" aria-label="Interactive San Francisco stairway map"></div><div class="map-badge"><span class="live-dot"></span> Map data from the Urban Hiker SF collection</div><div class="map-actions"><button id="locate" aria-label="Find my location" title="Find my location">${icon('locate')}</button><button id="fit" aria-label="Fit all filtered stairways" title="Fit all filtered stairways">${icon('pin')}</button></div><details class="map-legend" open><summary>Rating guide <span>⌃</span></summary><div>${[5,4,3,2,1,0].map(r=>`<div><span class="dot" style="--dot:${colors[r]}"></span><b>${r || '?'}</b> ${labels[r]}</div>`).join('')}<button id="legend-button">Read the source legend ↗</button></div></details><div id="detail" class="detail" hidden></div><p id="map-status" role="status" hidden></p></div></div>
+      <div class="filter-bar"><span class="filter-label">EXPLORE BY RATING</span><div class="rating-filters"><button class="chip active" data-rating="all" aria-pressed="true">All stairs</button>${[5,4,3,2,1].map(r => `<button class="chip" data-rating="${r}" aria-pressed="false"><span class="dot" style="--dot:${colors[r]}"></span>${r}<span class="chip-extra"> · ${['','','Local favorites','Hidden gems','Impressive','Extraordinary'][r] || 'Everyday'}</span></button>`).join('')}</div><label class="photo-filter" title="Filter results to stairways with visible photo previews"><input type="checkbox" id="photos-only"> Only show stairways with photo previews</label></div>
+      <div class="explorer-body"><aside class="results-panel"><div class="results-heading"><div><h2>Your next discovery</h2><p id="result-count" aria-live="polite"></p></div><button id="reset" class="reset">Reset</button></div><div id="results" class="results"></div></aside><div class="map-wrap"><div id="map" aria-label="Interactive San Francisco stairway map"></div><div class="map-badge"><span class="live-dot"></span> THE CITY IS BETTER ON FOOT</div><div class="map-actions"><button id="locate" aria-label="Find my location" title="Find my location">${icon('locate')}</button><button id="fit" aria-label="Fit all filtered stairways" title="Fit filtered stairways">${icon('pin')}</button></div><details class="map-legend" open><summary>Map legend <span>⌃</span></summary><div>${[5,4,3,2,1,0].map(r=>`<div><span class="dot" style="--dot:${colors[r]}"></span><b>${r || '?'}</b> ${labels[r]}</div>`).join('')}<button id="legend-button">What do the ratings mean? ↗</button></div></details><div id="detail" class="detail" hidden></div><p id="map-status" role="status" hidden></p></div></div>
     </section>
-    <section class="credit-strip"><span class="credit-mark">${icon('stairs',28)}</span><p>Built from the stairway map by <button id="bottom-credit">Alexandra Kenin / Urban Hiker SF</button>.<br><span>Based on the index of <em>Stairway Walks of San Francisco</em> by Mary Burk and Adah Bakalinsky.</span></p><a href="${sourceSheet}" target="_blank" rel="noopener noreferrer">Open the source collection ${icon('external',15)}</a></section>
+    <section class="credit-strip"><span class="credit-mark">${icon('stairs',28)}</span><p>A love letter to the people who take the long way.<br><span>Built on the stairway map by <button id="bottom-credit">Alexandra Kenin / Urban Hiker SF</button> and the work of Mary Burk & Adah Bakalinsky.</span></p><a href="${sourceSheet}" target="_blank" rel="noopener noreferrer">Explore the original collection ${icon('external',15)}</a></section>
   </main>
-  <footer><span>San Francisco, California</span><span>made w/ <span class="heart">&lt;3</span> in sf</span><span>Use good judgment on the stairs.</span></footer>
+  <footer><span>SAN FRANCISCO, CALIFORNIA</span><span>made w/ <span class="heart">&lt;3</span> in sf</span><span>GO OUTSIDE. LOOK UP.</span></footer>
   <dialog id="about"><button class="dialog-close" aria-label="Close about dialog">${icon('close')}</button><div class="eyebrow">THE PEOPLE BEHIND THE PATHS</div><h2>A city discovered<br>one stairway at a time.</h2><p>This independent project pays homage to <strong>Alexandra Kenin and Urban Hiker SF</strong>, whose public stairway map and photo collection make these discoveries possible.</p><p>The collection is based on the index of <em>Stairway Walks of San Francisco</em> by <strong>Mary Burk and Adah Bakalinsky</strong>, with additional stairways documented by Urban Hiker SF.</p><div class="source-links"><a href="${sourceSheet}" target="_blank" rel="noopener noreferrer">Original spreadsheet ↗</a><a href="${sourceMap}" target="_blank" rel="noopener noreferrer">Original map ↗</a><a href="https://www.urbanhikersf.com" target="_blank" rel="noopener noreferrer">Urban Hiker SF ↗</a><a href="https://www.buymeacoffee.com/urbanhikersf" target="_blank" rel="noopener noreferrer">Buy Alexandra a matcha ↗</a></div><h3>Keep in touch with Urban Hiker SF</h3><a href="mailto:info@urbanhikersf.com">info@urbanhikersf.com</a><p><a href="https://www.instagram.com/urbanhikersf/" target="_blank" rel="noopener noreferrer">Instagram: @urbanhikersf</a> · <a href="https://twitter.com/urbanhikersf" target="_blank" rel="noopener noreferrer">Twitter: @urbanhikersf</a><br><a href="https://www.facebook.com/urbanhikersf" target="_blank" rel="noopener noreferrer">Facebook: facebook.com/urbanhikersf</a></p><h3>The original rating legend</h3><p class="muted">Ratings describe a stairway’s character, not walking difficulty. Explanations below paraphrase the source legend.</p><div class="full-legend">${[5,4,3,2,1,0].map(r=>`<div><span class="legend-number" style="background:${colors[r]}">${r || '?'}</span><p><strong>${labels[r]}</strong><br>${legendDescriptions[r]}</p></div>`).join('')}</div><p class="muted">Beige rows in the original spreadsheet identify additions beyond the book’s index. This site does not reproduce that row formatting.</p><h3>About this collection</h3><p class="muted">Imported September 14, 2026; the source map says it was last updated July 26, 2026. Spreadsheet ratings take precedence for matched entries. Map-only entries retain their map rating. Entries without matched coordinates stay in the list. Locations and access may change; follow posted signs.</p><p class="muted">Photo previews and album links come from the source collection. Photo credits remain with their original creators; additional credits appear with individual entries. This site is not affiliated with Urban Hiker SF.</p></dialog>`;
 
 const map = L.map('map', {zoomControl: false, preferCanvas: true}).setView([37.759, -122.445], 12);
@@ -84,8 +85,9 @@ function selectStair(stair: Stair) {
   history.replaceState(null, '', `#${stair.id}`);
   const detail = el('#detail');
   detail.hidden = false;
-  detail.innerHTML = `<button class="detail-close" aria-label="Close stairway details">${icon('close')}</button>${stair.image ? `<a class="detail-image-link" href="${escape(stair.photos[0])}" target="_blank" rel="noopener noreferrer"><img class="detail-image" src="${escape(stair.image)}" alt="${escape(stair.name)}"><span>Photos from the Urban Hiker SF collection ↗</span></a>` : ''}<div class="detail-content"><div class="eyebrow">${escape(stair.neighborhood)}</div><h2>${escape(stair.name)}</h2><div class="detail-tags"><span class="rating-tag" style="--dot:${colors[stair.rating]}">${stair.rating ? '★ ' + stair.rating + ' / 5' : '? Unrated'}</span><span>${labels[stair.rating]}</span>${stair.steps ? `<span>${escape(stair.steps)} steps</span>` : ''}</div>${stair.needsVerification ? '<p class="notice">This location needs verification in the original map.</p>' : ''}${stair.lat === null ? '<p class="notice">Listed in the spreadsheet; no matched map coordinates.</p>' : ''}<div class="detail-links">${stair.photos.map((url, i)=>`<a href="${escape(url)}" target="_blank" rel="noopener noreferrer">${icon('camera',16)} ${i ? 'More photos' : 'View original photos'} ↗</a>`).join('')}${stair.lat !== null ? `<a class="directions" href="https://www.google.com/maps/dir/?api=1&destination=${stair.lat},${stair.lng}&travelmode=walking" target="_blank" rel="noopener noreferrer">Walking directions ${icon('arrow',16)}</a>` : ''}</div>${!stair.photos.length ? '<p class="muted">No photos linked in the source collection yet.</p>' : ''}${/photo by/i.test(stair.photoNote) ? `<p class="muted">${escape(stair.photoNote.replace(/https:\/\/\S+/g, '').trim())}</p>` : ''}${'row' in stair ? `<a class="source-row" href="${sourceSheet}&range=B${stair.row}:F${stair.row}" target="_blank" rel="noopener noreferrer">View spreadsheet entry ↗</a>` : `<a class="source-row" href="${sourceMap}" target="_blank" rel="noopener noreferrer">View original map ↗</a>`}</div>`;
+  detail.innerHTML = `<button class="detail-close" aria-label="Close stairway details">${icon('close')}</button>${stair.image ? `<a class="detail-image-link" href="${escape(stair.photos[0])}" target="_blank" rel="noopener noreferrer"><img class="detail-image" src="${escape(stair.image)}" alt="${escape(stair.name)}"><span>Photos from the Urban Hiker SF collection ↗</span></a>` : ''}<div class="detail-content"><div class="eyebrow">${escape(stair.neighborhood)}</div><h2>${escape(stair.name)}</h2><div class="detail-tags"><span class="rating-tag" style="--dot:${colors[stair.rating]}">${stair.rating ? '★ ' + stair.rating + ' / 5' : '? Unrated'}</span><span>${labels[stair.rating]}</span></div><section class="entry-measurements"><div><span>Step count</span><strong id="step-count">${stair.steps ? `${escape(stair.steps)} steps` : 'Estimating…'}</strong><small id="step-note">${stair.steps ? 'From the source index' : 'Estimated from Google elevation'}</small></div>${stair.lat !== null ? `<div id="elevation-card"><span>Elevation gain</span><strong id="elevation-value">Calculating…</strong><button id="elevation-button">${icon('elevation', 15)} Calculate from Google Maps</button><small id="elevation-note">Using the mapped point and a Google Maps endpoint or local terrain range.</small></div>` : '<div><span>Elevation gain</span><strong>Not mapped</strong><small>This entry has no coordinates.</small></div>'}</section>${stair.needsVerification ? '<p class="notice">This location needs verification in the original map.</p>' : ''}${stair.lat === null ? '<p class="notice">Listed in the spreadsheet; no matched map coordinates.</p>' : ''}<div class="detail-links">${stair.photos.map((url, i)=>`<a href="${escape(url)}" target="_blank" rel="noopener noreferrer">${icon('camera',16)} ${i ? 'More photos' : 'View original photos'} ↗</a>`).join('')}${stair.lat !== null ? `<a class="directions" href="https://www.google.com/maps/dir/?api=1&destination=${stair.lat},${stair.lng}&travelmode=walking" target="_blank" rel="noopener noreferrer">Walking directions ${icon('arrow',16)}</a>` : ''}</div>${!stair.photos.length ? '<p class="muted">No photos linked in the source collection yet.</p>' : ''}${/photo by/i.test(stair.photoNote) ? `<p class="muted">${escape(stair.photoNote.replace(/https:\/\/\S+/g, '').trim())}</p>` : ''}${'row' in stair ? `<a class="source-row" href="${sourceSheet}&range=B${stair.row}:F${stair.row}" target="_blank" rel="noopener noreferrer">View spreadsheet entry ↗</a>` : `<a class="source-row" href="${sourceMap}" target="_blank" rel="noopener noreferrer">View original map ↗</a>`}</div>`;
   detail.querySelector('button')!.addEventListener('click', hideDetail);
+  if (stair.lat !== null && stair.lng !== null) void calculateElevation(stair, detail);
   handleImages(detail);
   if(selectedMarker) map.removeLayer(selectedMarker);
   if(stair.lat !== null && stair.lng !== null) {
@@ -95,6 +97,37 @@ function selectStair(stair: Stair) {
     map.panBy([-offset, 0], {animate: false});
   }
   if(window.innerWidth <= 760) el('.map-wrap').scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+async function calculateElevation(stair: Stair, detail: HTMLElement) {
+  const button = detail.querySelector<HTMLButtonElement>('#elevation-button');
+  const value = detail.querySelector<HTMLElement>('#elevation-value');
+  const note = detail.querySelector<HTMLElement>('#elevation-note');
+  if (!button || !value || !note || stair.lat === null || stair.lng === null) return;
+  button.disabled = true;
+  button.hidden = true;
+  value.textContent = 'Calculating…';
+  note.textContent = 'Looking up an endpoint and sampling the elevation path.';
+  const params = new URLSearchParams({ version: '3', lat: String(stair.lat), lng: String(stair.lng), description: stair.name.slice(0, 500) });
+  try {
+    const response = await fetch(`/api/elevation?${params}`);
+    const result = await response.json() as { available?: boolean; gainFeet?: number; descentFeet?: number; verticalFeet?: number; startFeet?: number; endFeet?: number; endpoint?: string; estimatedSteps?: number; method?: 'inferred-path' | 'local-range'; reason?: string };
+    if (!response.ok || !result.available) throw new Error(result.reason || 'Elevation data is unavailable for this entry.');
+    value.textContent = result.method === 'inferred-path' ? (result.gainFeet! >= result.descentFeet! ? `~${result.gainFeet} ft uphill` : `~${result.descentFeet} ft downhill`) : `~${result.gainFeet} ft change`;
+    note.textContent = result.method === 'inferred-path' ? `Estimated from ${result.startFeet} ft to ${result.endFeet} ft toward ${result.endpoint}.` : 'Estimated from Google elevation samples within 45 m of the mapped location.';
+    if (!stair.steps) {
+      const stepCount = detail.querySelector<HTMLElement>('#step-count');
+      const stepNote = detail.querySelector<HTMLElement>('#step-note');
+      if (stepCount && stepNote) {
+        stepCount.textContent = `~${result.estimatedSteps} steps`;
+        stepNote.textContent = 'Estimated from Google elevation using a 7 in riser.';
+      }
+    }
+  } catch (error) {
+    value.textContent = 'No estimate available';
+    note.textContent = error instanceof Error ? error.message : 'Elevation data is unavailable for this entry.';
+  } finally {
+    button.hidden = true;
+  }
 }
 function handleImages(parent: HTMLElement) {
   parent.querySelectorAll<HTMLImageElement>('img').forEach(img => img.addEventListener('error', () => {img.hidden = true; img.parentElement?.classList.add('image-unavailable');}, {once: true}));
@@ -114,7 +147,7 @@ function fit() {
 }
 function render(fitMap = false) {
   el('#map-status').hidden = true;
-  visible = stairs.filter(stair => (rating === 'all' || stair.rating === Number(rating)) && (!neighborhood || stair.neighborhood === neighborhood) && (!photosOnly || stair.photos.length > 0) && `${stair.name} ${stair.neighborhood}`.toLowerCase().includes(query.toLowerCase().trim()));
+  visible = stairs.filter(stair => (rating === 'all' || stair.rating === Number(rating)) && (!neighborhood || stair.neighborhood === neighborhood) && (!photosOnly || Boolean(stair.image)) && `${stair.name} ${stair.neighborhood}`.toLowerCase().includes(query.toLowerCase().trim()));
   pageSize = 45;
   const mapped = visible.filter(s=>s.lat!==null).length;
   el('#result-count').textContent = `${visible.length.toLocaleString()} stairways · ${mapped.toLocaleString()} on the map`;

@@ -2,5 +2,10 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "sf-stairs-map",
   "compatibility_date": "2026-09-14",
-  "assets": { "directory": "./dist" }
+  "main": "./worker/index.ts",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  }
 }
