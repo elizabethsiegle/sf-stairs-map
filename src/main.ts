@@ -4,6 +4,7 @@ import './style.css';
 const { default: dataset } = await import('./stairs.json');
 
 type Stair = (typeof dataset.stairs)[number];
+type RouteStop = Stair & { lat: number; lng: number };
 const stairs: Stair[] = dataset.stairs;
 const colors = ['#242923', '#0288d1', '#558b2f', '#d2ad00', '#f57c00', '#e65100'];
 const labels = ['Needs verification', 'Simple & functional', 'Neighborhood character', 'Hidden gems', 'Something special', 'The Scheherazade category'];
@@ -27,6 +28,7 @@ const icon = (name: string, size = 20) => {
     locate: '<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 1v4m0 14v4M1 12h4m14 0h4"/>',
     close: '<path d="m6 6 12 12M6 18 18 6"/>',
     shuffle: '<path d="m3 5 5 0 8 14h5m-5-4 5 4-5 4M3 19h5L16 5h5m-5-4 5 4-5 4"/>',
+    route: '<path d="M4 18c3-1 3-11 7-11s3 10 7 9 2-6 3-8"/><circle cx="4" cy="18" r="2"/><circle cx="21" cy="8" r="2"/>',
     external: '<path d="M14 3h7v7m0-7L10 14M10 3H3v18h18v-7"/>'
   };
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.stairs}</svg>`;
@@ -46,6 +48,7 @@ let photosOnly = false;
 let visible: Stair[] = [];
 let selected: Stair | undefined;
 let pageSize = 45;
+let routeStops: RouteStop[] = [];
 
 el('#app').innerHTML = `
   <header class="header">
@@ -63,9 +66,9 @@ el('#app').innerHTML = `
       <button id="featured" class="featured" aria-label="Explore ${escape(featured.name)}"><img src="${escape(featured.image!)}" alt="${escape(featured.name)}" fetchpriority="high"><span class="featured-shade"></span><span class="photo-stamp">Featured stairway</span><span class="featured-caption"><span>${escape(featured.name.split('/')[0])}<small>${escape(featured.neighborhood)} · ★ ${featured.rating} rated</small></span><span class="circle-arrow">${icon('arrow')}</span></span></button>
     </section>
     <section class="explorer" aria-label="Explore stairways">
-      <div class="toolbar"><label class="search">${icon('search')}<input id="search" type="search" placeholder="Search a stairway, street, or neighborhood" aria-label="Search stairways"></label><div class="toolbar-right"><label class="select-wrap">${icon('pin', 17)}<select id="neighborhood" aria-label="Neighborhood"><option value="">All neighborhoods</option>${neighborhoods.map(n => `<option>${escape(n)}</option>`).join('')}</select></label><button id="surprise" class="surprise">${icon('shuffle', 17)} Surprise me</button></div></div>
+      <div class="toolbar"><label class="search">${icon('search')}<input id="search" type="search" placeholder="Search a stairway, street, or neighborhood" aria-label="Search stairways"></label><div class="toolbar-right"><label class="select-wrap">${icon('pin', 17)}<select id="neighborhood" aria-label="Neighborhood"><option value="">All neighborhoods</option>${neighborhoods.map(n => `<option>${escape(n)}</option>`).join('')}</select></label><button id="route-toggle" class="route-toggle" aria-expanded="false">${icon('route', 17)} Plan a stair route</button><button id="surprise" class="surprise">${icon('shuffle', 17)} Surprise me</button></div></div>
       <div class="filter-bar"><span class="filter-label">Rating</span><div class="rating-filters"><button class="chip active" data-rating="all" aria-pressed="true">All</button>${[5,4,3,2,1].map(r => `<button class="chip" data-rating="${r}" aria-pressed="false"><span class="dot" style="--dot:${colors[r]}"></span>${r}<span class="chip-extra"> · ${['','','Favorite','Hidden gem','Notable','Everyday'][r] || 'Everyday'}</span></button>`).join('')}</div><label class="photo-filter"><input type="checkbox" id="photos-only"> Photo links only</label></div>
-      <div class="explorer-body"><aside class="results-panel"><div class="results-heading"><div><h2>Stairways</h2><p id="result-count" aria-live="polite"></p></div><button id="reset" class="reset">Clear filters</button></div><div id="results" class="results"></div></aside><div class="map-wrap"><div id="map" aria-label="Interactive San Francisco stairway map"></div><div class="map-badge"><span class="live-dot"></span> Map data from the Urban Hiker SF collection</div><div class="map-actions"><button id="locate" aria-label="Find my location" title="Find my location">${icon('locate')}</button><button id="fit" aria-label="Fit all filtered stairways" title="Fit all filtered stairways">${icon('pin')}</button></div><details class="map-legend" open><summary>Rating guide <span>⌃</span></summary><div>${[5,4,3,2,1,0].map(r=>`<div><span class="dot" style="--dot:${colors[r]}"></span><b>${r || '?'}</b> ${labels[r]}</div>`).join('')}<button id="legend-button">Read the source legend ↗</button></div></details><div id="detail" class="detail" hidden></div><p id="map-status" role="status" hidden></p></div></div>
+      <div class="explorer-body"><aside class="results-panel"><div class="results-heading"><div><h2>Stairways</h2><p id="result-count" aria-live="polite"></p></div><button id="reset" class="reset">Clear filters</button></div><div id="results" class="results"></div></aside><div class="map-wrap"><div id="map" aria-label="Interactive San Francisco stairway map"></div><div class="map-badge"><span class="live-dot"></span> Map data from the Urban Hiker SF collection</div><div class="map-actions"><button id="locate" aria-label="Find my location" title="Find my location">${icon('locate')}</button><button id="fit" aria-label="Fit all filtered stairways" title="Fit all filtered stairways">${icon('pin')}</button></div><section id="route-planner" class="route-planner" hidden aria-labelledby="route-title"><button id="route-close" class="route-close" aria-label="Close route planner">${icon('close', 17)}</button><div class="eyebrow"><span></span> Walk planner</div><h2 id="route-title">A good day for stairs.</h2><p>Make a compact route from the stairways in your current results.</p><label class="route-count">Stops <select id="route-count" aria-label="Number of stairway stops">${[3,4,5,6,7,8].map(count => `<option value="${count}"${count === 4 ? ' selected' : ''}>${count} stairways</option>`).join('')}</select></label><button id="route-generate" class="route-generate">${icon('shuffle', 16)} Generate a route</button><p id="route-note" class="route-note" aria-live="polite"></p><div id="route-output" class="route-output" hidden><div class="route-summary"><span id="route-distance"></span><span id="route-time"></span></div><ol id="route-stops" class="route-stops"></ol><div class="route-actions"><button id="route-remix">${icon('shuffle', 15)} Try another</button><a id="route-directions" target="_blank" rel="noopener noreferrer">Open walking directions ${icon('external', 15)}</a></div></div></section><details class="map-legend" open><summary>Rating guide <span>⌃</span></summary><div>${[5,4,3,2,1,0].map(r=>`<div><span class="dot" style="--dot:${colors[r]}"></span><b>${r || '?'}</b> ${labels[r]}</div>`).join('')}<button id="legend-button">Read the source legend ↗</button></div></details><div id="detail" class="detail" hidden></div><p id="map-status" role="status" hidden></p></div></div>
     </section>
     <section class="credit-strip"><span class="credit-mark">${icon('stairs',28)}</span><p>Built from the stairway map by <button id="bottom-credit">Alexandra Kenin / Urban Hiker SF</button>.<br><span>Based on the index of <em>Stairway Walks of San Francisco</em> by Mary Burk and Adah Bakalinsky.</span></p><a href="${sourceSheet}" target="_blank" rel="noopener noreferrer">Open the source collection ${icon('external',15)}</a></section>
   </main>
@@ -76,7 +79,77 @@ const map = L.map('map', {zoomControl: false, preferCanvas: true}).setView([37.7
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).on('tileerror', () => status('Map tiles could not load. You can still browse stairways in the list.')).addTo(map);
 L.control.zoom({position: 'topright'}).addTo(map);
 const markers = L.layerGroup().addTo(map);
+const routeLines = L.layerGroup().addTo(map);
 let selectedMarker: L.CircleMarker | undefined;
+function mappedStops(): RouteStop[] {
+  return visible.filter((stair): stair is RouteStop => stair.lat !== null && stair.lng !== null);
+}
+function distanceMiles(a: RouteStop, b: RouteStop) {
+  const radians = Math.PI / 180;
+  const lat = (b.lat - a.lat) * radians;
+  const lng = (b.lng - a.lng) * radians;
+  const value = Math.sin(lat / 2) ** 2 + Math.cos(a.lat * radians) * Math.cos(b.lat * radians) * Math.sin(lng / 2) ** 2;
+  return 3958.8 * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
+}
+function formatDistance(miles: number) {
+  return miles < 1 ? `${Math.max(100, Math.round(miles * 5280 / 50) * 50)} ft` : `${miles.toFixed(1)} mi`;
+}
+function routeUrl(stops: RouteStop[]) {
+  const params = new URLSearchParams({
+    api: '1',
+    origin: `${stops[0].lat},${stops[0].lng}`,
+    destination: `${stops[0].lat},${stops[0].lng}`,
+    travelmode: 'walking'
+  });
+  if (stops.length > 1) params.set('waypoints', stops.slice(1).map(stop => `${stop.lat},${stop.lng}`).join('|'));
+  return `https://www.google.com/maps/dir/?${params}`;
+}
+function drawRoute() {
+  routeLines.clearLayers();
+  if (routeStops.length < 2) return;
+  L.polyline([...routeStops, routeStops[0]].map(stop => [stop.lat, stop.lng]), {color: '#ce4b2d', weight: 4, opacity: .9, dashArray: '7 7'}).addTo(routeLines);
+  routeStops.forEach((stop, index) => L.marker([stop.lat, stop.lng], {icon: L.divIcon({className: 'route-marker', html: `<span>${index + 1}</span>`, iconSize: [26, 26], iconAnchor: [13, 13]})}).bindTooltip(escape(stop.name), {direction: 'top'}).on('click', () => selectStair(stop)).addTo(routeLines));
+}
+function clearRoute(message = '') {
+  routeStops = [];
+  routeLines.clearLayers();
+  el('#route-output').hidden = true;
+  el('#route-note').textContent = message;
+}
+function showRoute() {
+  const loop = [...routeStops.slice(1), routeStops[0]];
+  const distance = loop.reduce((total, stop, index) => total + distanceMiles(routeStops[index], stop), 0) * 1.28;
+  const minutes = Math.max(12, Math.round(distance * 23));
+  el('#route-distance').textContent = `About ${formatDistance(distance)}`;
+  el('#route-time').textContent = `~${minutes} min of walking`;
+  el('#route-stops').innerHTML = routeStops.map(stop => `<li><button data-route-stop="${stop.id}"><span>${escape(stop.name)}</span><small>${escape(stop.neighborhood)}</small></button></li>`).join('');
+  el<HTMLAnchorElement>('#route-directions').href = routeUrl(routeStops);
+  el('#route-output').hidden = false;
+  el('#route-note').textContent = 'Estimated distance follows the line between stops. Walking directions use the street network.';
+  el('#route-stops').querySelectorAll<HTMLButtonElement>('[data-route-stop]').forEach(button => button.addEventListener('click', () => selectStair(routeStops.find(stop => stop.id === button.dataset.routeStop)!)));
+  drawRoute();
+  map.fitBounds(L.latLngBounds(routeStops.map(stop => [stop.lat, stop.lng])), {padding: [54, 54], maxZoom: 15, animate: false});
+}
+function generateRoute() {
+  const count = Number(el<HTMLSelectElement>('#route-count').value);
+  const candidates = mappedStops();
+  if (candidates.length < 2) {
+    clearRoute('Try clearing a filter. This set needs at least two mapped stairways.');
+    return;
+  }
+  const target = Math.min(count, candidates.length);
+  const start = selected && candidates.find(stair => stair.id === selected!.id) || candidates[Math.floor(Math.random() * candidates.length)];
+  const remaining = candidates.filter(stair => stair.id !== start.id);
+  routeStops = [start];
+  while (routeStops.length < target && remaining.length) {
+    const current = routeStops.at(-1)!;
+    const nearby = remaining.map(stair => ({stair, distance: distanceMiles(current, stair)})).sort((a, b) => a.distance - b.distance);
+    const choice = nearby[Math.floor(Math.random() * Math.min(3, nearby.length))].stair;
+    routeStops.push(choice);
+    remaining.splice(remaining.findIndex(stair => stair.id === choice.id), 1);
+  }
+  showRoute();
+}
 function status(message: string) {el('#map-status').textContent = message;el('#map-status').hidden = false;}
 function hideDetail() {el('#detail').hidden = true; selected = undefined;if(selectedMarker)map.removeLayer(selectedMarker); history.replaceState(null, '', location.pathname + location.search);}
 function selectStair(stair: Stair) {
@@ -115,6 +188,7 @@ function fit() {
 function render(fitMap = false) {
   el('#map-status').hidden = true;
   visible = stairs.filter(stair => (rating === 'all' || stair.rating === Number(rating)) && (!neighborhood || stair.neighborhood === neighborhood) && (!photosOnly || stair.photos.length > 0) && `${stair.name} ${stair.neighborhood}`.toLowerCase().includes(query.toLowerCase().trim()));
+  if (routeStops.some(stop => !visible.some(stair => stair.id === stop.id))) clearRoute('Your filters changed. Generate a route from these results.');
   pageSize = 45;
   const mapped = visible.filter(s=>s.lat!==null).length;
   el('#result-count').textContent = `${visible.length.toLocaleString()} stairways · ${mapped.toLocaleString()} on the map`;
@@ -142,6 +216,18 @@ document.querySelectorAll<HTMLButtonElement>('[data-rating]').forEach(button => 
 el('#reset').addEventListener('click', reset);
 el('#fit').addEventListener('click', fit);
 el('#surprise').addEventListener('click', () => {if(visible.length)selectStair(visible[Math.floor(Math.random() * visible.length)]);});
+const routePlanner = el<HTMLElement>('#route-planner');
+el<HTMLButtonElement>('#route-toggle').addEventListener('click', () => {
+  routePlanner.hidden = !routePlanner.hidden;
+  el<HTMLButtonElement>('#route-toggle').setAttribute('aria-expanded', String(!routePlanner.hidden));
+  if (!routePlanner.hidden && !routeStops.length) el('#route-note').textContent = 'Use your filters to shape the route, then choose how many stairways to visit.';
+});
+el('#route-close').addEventListener('click', () => {
+  routePlanner.hidden = true;
+  el<HTMLButtonElement>('#route-toggle').setAttribute('aria-expanded', 'false');
+});
+el('#route-generate').addEventListener('click', generateRoute);
+el('#route-remix').addEventListener('click', generateRoute);
 el('#featured').addEventListener('click', () => selectStair(featured));
 const about = el<HTMLDialogElement>('#about');
 ['about-button', 'credit-button', 'bottom-credit', 'legend-button'].forEach(id=> el('#'+id).addEventListener('click', () => about.showModal()));
