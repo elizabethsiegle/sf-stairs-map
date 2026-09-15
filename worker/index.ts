@@ -1,6 +1,7 @@
 interface Env {
   ASSETS: Fetcher;
   GOOGLE_MAPS_API_KEY: string;
+  VERIFICATION_REPORTS: KVNamespace;
 }
 
 type Coordinates = { lat: number; lng: number };
@@ -111,9 +112,19 @@ async function estimateElevation(request: Request, env: Env, ctx: ExecutionConte
   }
 }
 
+async function saveVerificationReport(request: Request, env: Env) {
+  if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405, 'no-store');
+  const report = await request.json().catch(() => null) as { stairId?: string; type?: string; details?: string; contact?: string } | null;
+  if (!report?.stairId || !['location', 'access', 'duplicate', 'photo', 'other'].includes(report.type || '') || !report.details?.trim() || report.details.length > 1500 || (report.contact?.length || 0) > 254) return json({ error: 'Please include the stairway and a short report.' }, 400, 'no-store');
+  const id = crypto.randomUUID();
+  await env.VERIFICATION_REPORTS.put(`report:${Date.now()}:${id}`, JSON.stringify({ id, stairId: report.stairId, type: report.type, details: report.details.trim(), contact: report.contact?.trim() || null, submittedAt: new Date().toISOString(), status: 'pending' }));
+  return json({ accepted: true }, 202, 'no-store');
+}
+
 export default {
   fetch(request, env, ctx): Promise<Response> | Response {
     if (new URL(request.url).pathname === '/api/elevation') return estimateElevation(request, env, ctx);
+    if (new URL(request.url).pathname === '/api/verification-reports') return saveVerificationReport(request, env);
     return env.ASSETS.fetch(request);
   }
 } satisfies ExportedHandler<Env>;
