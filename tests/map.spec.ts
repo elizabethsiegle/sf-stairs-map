@@ -7,7 +7,8 @@ test('search, filters, details, attribution, and empty state work together', asy
   await expect(page.locator('#result-count')).toContainText('1,123 stairways');
   await page.locator('[data-rating="5"]').click();
   await expect(page.locator('#result-count')).toContainText('80 stairways');
-  await page.locator('#neighborhood').selectOption('Bernal Heights');
+  await page.locator('#neighborhood-picker summary').click();
+  await page.locator('#neighborhood-picker input[value="Bernal Heights"]').check();
   await expect(page.locator('.stair-card').first()).toBeVisible();
   await page.locator('.stair-card').first().click();
   await expect(page.locator('#detail')).toBeVisible();
