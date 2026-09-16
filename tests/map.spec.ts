@@ -150,11 +150,50 @@ test('retrofit candidate filter narrows results and works from the keyboard', as
   await page.locator('#retrofit-only').focus();
   await page.keyboard.press('Space');
   await expect(page.locator('#retrofit-only')).toBeChecked();
-  await expect(page.locator('#result-count')).toContainText('82 stairways · 80 on the map');
+  await expect(page.locator('#result-count')).toContainText('183 stairways · 181 on the map');
   await expect(page.locator('.stair-card .retrofit-flag')).toHaveCount(45);
   await page.locator('[data-rating="2"]').click();
+  await expect(page.locator('#result-count')).toContainText('18 stairways');
+  await page.locator('#search').fill('no-such-stairway-xyz');
   await expect(page.locator('#result-count')).toContainText('0 stairways');
   await page.locator('#empty-reset').click();
   await expect(page.locator('#retrofit-only')).not.toBeChecked();
   await expect(page.locator('#result-count')).toContainText('1,123 stairways');
+});
+
+test('stairway measurements come from the bundled cache, not a live API', async ({ page }) => {
+  const errors: string[] = [];
+  const apiCalls: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('request', request => {
+    const url = request.url();
+    if (/\/api\/|maps\.googleapis\.com|nationalmap\.gov|overpass/.test(url)) apiCalls.push(url);
+  });
+  await page.goto('/');
+
+  // A real check on accuracy: the 16th Avenue Tiled Steps have 163 steps.
+  await page.locator('#search').fill('16th Avenue Tiled Steps');
+  await page.locator('.stair-card').first().click();
+  await expect(page.locator('#step-count')).toHaveText(/^~?1[56][0-9] steps$/);
+  await expect(page.locator('#elevation-value')).toHaveText(/^\d+ ft climb$/);
+  await expect(page.locator('#elevation-note')).toContainText('1 m lidar');
+
+  // The Lyon Street Steps are published as 288 steps.
+  await page.locator('#search').fill('Lyon Street Steps');
+  await page.locator('.stair-card').first().click();
+  await expect(page.locator('#step-count')).toHaveText(/^~?2[6-9][0-9] steps$/);
+
+  // Values render immediately, with no request in flight and no response to parse.
+  await expect(page.locator('#elevation-value')).not.toHaveText('Calculating…');
+  await expect(page.locator('#detail')).not.toContainText('not valid JSON');
+  expect(apiCalls).toEqual([]);
+  expect(errors).toEqual([]);
+});
+
+test('a stairway with no measurement says so instead of guessing', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#search').fill('Coyote Crags');
+  await page.locator('.stair-card').first().click();
+  await expect(page.locator('#elevation-value')).toHaveText('Not mapped');
+  await expect(page.locator('#step-count')).toHaveText('Not counted');
 });
