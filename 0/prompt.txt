@@ -1,0 +1,8 @@
+my teammate joseph said to run
+entire trail finding list --severity high,medium --json
+default trail finding target not found: no trail found for branch "main"
+hint: run 'entire trail create', 'entire trail list --status any', or pass --trail <number|id|branch>
+
+but i get errors
+
+he said do a trail show that is ht as findings and then show that your agents loop and resolve those findings automatically with entire trail watch
