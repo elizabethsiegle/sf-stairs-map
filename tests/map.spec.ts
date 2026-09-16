@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 
 test('search, filters, details, attribution, and empty state work together', async ({ page }) => {
   const errors: string[] = [];
@@ -130,4 +131,87 @@ test('a stairway with no measurement says so instead of guessing', async ({ page
   await page.locator('.stair-card').first().click();
   await expect(page.locator('#elevation-value')).toHaveText('Not mapped');
   await expect(page.locator('#step-count')).toHaveText('Not counted');
+});
+
+test('escalator scoring is deterministic and maps scores to the four tiers', async () => {
+  const { assessStairway, tierFor, tiers, openers, closers, scenicLines } = await import('../src/escalator');
+  const long = assessStairway({ id: 'synthetic-long', name: 'Filbert Steps with bay views', rating: 5, steps: '200' });
+  expect(long.score).toBeGreaterThanOrEqual(8);
+  expect(long.score).toBeLessThanOrEqual(15);
+  expect(long.tier).toBe('Immediate Escalation Advised');
+  expect(long.glide).toBe('50 seconds of effortless glide.');
+  expect(long.basis).toBe('index');
+  expect(openers['Immediate Escalation Advised'].some(line => long.remark.startsWith(line))).toBe(true);
+  expect(long.remark).toContain('200 steps');
+  expect(scenicLines.some(line => long.remark.includes(line))).toBe(true);
+  expect(long.remark).toContain('5 star');
+  expect(closers['Immediate Escalation Advised'].some(line => long.remark.endsWith(line))).toBe(true);
+  expect(assessStairway({ id: 'synthetic-long', name: 'Filbert Steps with bay views', rating: 5, steps: '200' })).toEqual(long);
+  const short = assessStairway({ id: 'synthetic-short', name: 'Bronte/Tompkins & Jarboe.', rating: 1, steps: '20' });
+  expect(short.score).toBeGreaterThanOrEqual(80);
+  expect(short.score).toBeLessThan(90);
+  expect(short.tier).toBe('Monitor');
+  expect(short.candidate).toBe(false);
+  expect(assessStairway({ id: 'x', name: 'Somewhere', rating: 3, steps: '80' }).tier).toBe('Recommended');
+  const fallback = assessStairway({ id: 'no-such-stairway', name: 'Unsurveyed', rating: 2, steps: '' });
+  expect(fallback.basis).toBe('rating-fallback');
+  expect(fallback.measured).toBe(false);
+  expect(fallback.remark).toContain('56');
+  expect(closers.Monitor.some(line => fallback.remark.endsWith(line))).toBe(true);
+  expect([0, 31, 32, 44, 45, 64, 65, 100].map(tierFor)).toEqual(['Immediate Escalation Advised', 'Immediate Escalation Advised', 'Priority Candidate', 'Priority Candidate', 'Recommended', 'Recommended', 'Monitor', 'Monitor']);
+  for (const tier of tiers) { expect(openers[tier].length, `${tier} needs opener variants`).toBeGreaterThan(3); expect(closers[tier].length, `${tier} needs closer variants`).toBeGreaterThan(3); }
+  for (const line of closers['Immediate Escalation Advised']) expect(line).toMatch(/escalat/i);
+  const { stairs } = JSON.parse(readFileSync(new URL('../src/stairs.json', import.meta.url), 'utf8')) as { stairs: { id: string; name: string; rating: number; steps: string }[] };
+  const scored = stairs.map(assessStairway);
+  for (const tier of tiers) expect(scored.some(entry => entry.tier === tier), `no stairway reaches ${tier}`).toBe(true);
+  expect(scored.filter(entry => entry.candidate)).toHaveLength(183);
+  expect(scored.filter(entry => entry.measured).length, 'most stairways should score from measured steps').toBeGreaterThan(800);
+  expect(new Set(scored.map(entry => entry.remark)).size).toBeGreaterThan(900);
+});
+
+test('two stairways with the same rating and no index count score differently', async () => {
+  const { assessStairway } = await import('../src/escalator');
+  const { stairs } = JSON.parse(readFileSync(new URL('../src/stairs.json', import.meta.url), 'utf8')) as { stairs: { id: string; name: string; rating: number; steps: string }[] };
+  const pair = ['Aurelious Walker', 'Quesada Gardens'].map(name => assessStairway(stairs.find(entry => entry.name.startsWith(name))!));
+  for (const entry of pair) expect(entry.measured, 'both should score from measured steps, not the rating').toBe(true);
+  expect(new Set(pair.map(entry => entry.steps)).size).toBe(2);
+  expect(new Set(pair.map(entry => entry.score)).size).toBe(2);
+  expect(new Set(pair.map(entry => entry.tier)).size).toBe(2);
+  expect(new Set(pair.map(entry => entry.remark)).size).toBe(2);
+});
+
+test('detail panel shows the escalator retrofit assessment and cards flag candidates', async ({ page }) => {
+  const { assessStairway } = await import('../src/escalator');
+  await page.goto('/');
+  await page.locator('#search').fill('Tompkins');
+  await expect(page.locator('.stair-card')).toHaveCount(2);
+  await expect(page.locator('.stair-card .retrofit-flag')).toHaveCount(1);
+  await expect(page.locator('.stair-card .retrofit-flag')).toHaveText('Needs escalator');
+  await page.locator('.stair-card').first().click();
+  const expected = assessStairway({ id: 'd6bb596fb83a', name: 'Tompkins/Putnam & Nevada. Mosaic!', rating: 5, steps: '66' });
+  const assessment = page.locator('.escalator-assessment');
+  await expect(assessment).toContainText('Escalator Retrofit Assessment');
+  await expect(assessment.locator('#efficiency-score')).toHaveText(`${expected.score} / 100`);
+  await expect(assessment.locator('#glide-time')).toHaveText(expected.glide);
+  await expect(assessment.locator('.retrofit-tier')).toHaveText('Priority Candidate');
+  await expect(assessment.locator('.retrofit-tier')).toHaveAttribute('data-tier', 'priority-candidate');
+  await expect(assessment.locator('.escalator-measurements small').first()).toContainText('counted in the source index');
+  await expect(assessment.locator('.escalator-remark')).toHaveText(expected.remark);
+  await page.locator('.stair-card').nth(1).click();
+  await expect(assessment.locator('.retrofit-tier')).toHaveText('Monitor');
+  await expect(page.locator('.map-legend')).toContainText('Flagged where an escalator would help most');
+});
+
+test('retrofit candidate filter narrows results and works from the keyboard', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#retrofit-only').focus();
+  await page.keyboard.press('Space');
+  await expect(page.locator('#retrofit-only')).toBeChecked();
+  await expect(page.locator('#result-count')).toContainText('183 stairways · 181 on the map');
+  await expect(page.locator('.stair-card .retrofit-flag')).toHaveCount(45);
+  await page.locator('#search').fill('no-such-stairway-xyz');
+  await expect(page.locator('#result-count')).toContainText('0 stairways');
+  await page.locator('#empty-reset').click();
+  await expect(page.locator('#retrofit-only')).not.toBeChecked();
+  await expect(page.locator('#result-count')).toContainText('1,123 stairways');
 });
