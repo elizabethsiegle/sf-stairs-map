@@ -3,7 +3,7 @@
   "checkpoint_id": "01M2MGCWBW9DEVGSY6WW78GKXX",
   "strategy": "manual-commit",
   "branch": "escalator-retrofit",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     "src/escalator.ts",
     "src/main.ts",
@@ -23,13 +23,20 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 18,
-    "cache_creation_tokens": 40788,
-    "cache_read_tokens": 470160,
-    "output_tokens": 4301,
-    "api_call_count": 9
+    "input_tokens": 320,
+    "cache_creation_tokens": 210605,
+    "cache_read_tokens": 4669401,
+    "output_tokens": 50156,
+    "api_call_count": 55
   }
 }
