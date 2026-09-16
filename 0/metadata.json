@@ -57,6 +57,37 @@
       }
     }
   ],
+  "summary": {
+    "intent": "Add a new 'Escalator Retrofit Assessment' feature to a San Francisco stairways map app: a deterministic scoring module plus UI surfacing (detail panel, result card badges, filter checkbox, legend line), built on a new branch, without touching data files or existing attribution content.",
+    "outcome": "Assistant explored the repo structure, existing CSS conventions, and dataset field formats, created the escalator-retrofit branch, and began writing src/escalator.ts along with a script to validate tier distribution across the dataset; main.ts, escalator.css, and tests/map.spec.ts were also touched, but the transcript ends before build/test verification is shown.",
+    "learnings": {
+      "repo": [
+        "main.ts renders UI via dense template-literal strings (single-quoted, minimal comments) — new code must match this style rather than refactoring toward components",
+        "The `#detail` innerHTML block (~line 118) and `.stair-card` template (~line 180) are the two main injection points for per-stairway UI in main.ts",
+        "Existing filter bar has a 'Only show stairways with photo previews' checkbox whose wiring path (filter state + result count) is the pattern to replicate for the new retrofit-candidate filter",
+        "Stylesheets are split per feature (e.g. a new src/escalator.css) and imported alongside existing ones rather than merged into one file",
+        "tests/map.spec.ts is a Playwright suite covering the map UI, requiring updates for any new UI elements plus new unit-style coverage for scoring logic",
+        "Node's native TypeScript support (no ts-node/tsx needed) was usable to run a quick script against escalator.ts and stairs.json"
+      ],
+      "code": [],
+      "workflow": [
+        "Before implementing, the assistant loaded a 'brainstorming' skill as a required process step ahead of exploration and coding",
+        "Used a Node script against the dataset to precompute tier counts before writing the Playwright filter test, so the test could assert a real, non-arbitrary count rather than a guessed one",
+        "Preferred running a Node script over zsh globbing to extract CSS rules from files, avoiding shell quoting/globbing issues"
+      ]
+    },
+    "friction": [
+      "zsh globbing was insufficient/unreliable for extracting multiple CSS rule blocks, requiring a fallback to a script-based extraction approach",
+      "Needed multiple passes (repeated Bash extraction calls) to gather all relevant existing CSS rules (filter, thumbnail, legend, eyebrow selectors) before writing new styles"
+    ],
+    "open_items": [
+      "Run `npm run build`, `npx playwright install chromium`, and `npm test` to verify the feature before committing (per the user's finish instructions) — not yet shown as completed in the transcript",
+      "Finish wiring the escalator retrofit filter checkbox and result count logic in main.ts",
+      "Complete and verify the 'RETROFIT CANDIDATE' badge logic on `.stair-card` thumbnails for top two priority tiers",
+      "Add the map legend line noting retrofit candidates are flagged",
+      "Add Playwright coverage for scoring function tiers and the new filter as instructed"
+    ]
+  },
   "initial_attribution": {
     "calculated_at": "2026-09-16T06:54:05.038435Z",
     "agent_lines": 137,
