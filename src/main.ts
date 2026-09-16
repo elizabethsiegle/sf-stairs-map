@@ -3,6 +3,8 @@ import 'leaflet/dist/leaflet.css';
 import './style.css';
 import './route-planner.css';
 import './multi-neighborhood.css';
+import './escalator.css';
+import { assessStairway, type Assessment } from './escalator';
 import { measurementFor, riseLabel, riseNote, stepLabel, stepNote, stepReading, stepSummary } from './measurements';
 const { default: dataset } = await import('./stairs.json');
 
@@ -44,6 +46,7 @@ function el<T extends HTMLElement>(selector: string): T {
   return node;
 }
 const neighborhoods = [...new Set(stairs.map(stair => stair.neighborhood))].sort();
+const assessments = new Map(stairs.map(stair => [stair.id, assessStairway(stair)]));
 const featuredStairs = stairs.filter(stair => stair.image).sort(() => Math.random() - .5).slice(0, 3);
 let featuredIndex = 0;
 let featured = featuredStairs[featuredIndex];
@@ -51,6 +54,7 @@ let rating = 'all';
 let query = '';
 const selectedNeighborhoods = new Set<string>();
 let photosOnly = false;
+let retrofitOnly = false;
 let visible: Stair[] = [];
 let selected: Stair | undefined;
 let pageSize = 45;
@@ -77,8 +81,8 @@ el('#app').innerHTML = `
     </section>
     <section class="explorer" aria-label="Explore stairways">
       <div class="toolbar"><label class="search">${icon('search')}<input id="search" type="search" placeholder="Search a stairway, street, or neighborhood" aria-label="Search stairways"></label><div class="toolbar-right"><label class="select-wrap">${icon('pin', 17)}<select id="neighborhood" aria-label="Neighborhood"><option value="">All neighborhoods</option>${neighborhoods.map(n => `<option>${escape(n)}</option>`).join('')}</select></label><button id="surprise" class="surprise">${icon('shuffle', 17)} Surprise me</button></div></div>
-      <div class="filter-bar"><span class="filter-label">EXPLORE BY RATING</span><div class="rating-filters"><button class="chip active" data-rating="all" aria-pressed="true">All stairs</button>${[5,4,3,2,1].map(r => `<button class="chip" data-rating="${r}" aria-pressed="false"><span class="dot" style="--dot:${colors[r]}"></span>${r}<span class="chip-extra"> · ${['','','Local favorites','Hidden gems','Impressive','Extraordinary'][r] || 'Everyday'}</span></button>`).join('')}</div><label class="photo-filter" title="Filter results to stairways with visible photo previews"><input type="checkbox" id="photos-only"> Only show stairways with photo previews</label></div>
-      <div class="explorer-body"><aside class="results-panel"><div class="results-heading"><div><h2>Your next discovery</h2><p id="result-count" aria-live="polite"></p></div><button id="reset" class="reset">Reset</button></div><div id="results" class="results"></div></aside><div class="map-wrap"><div id="map" aria-label="Interactive San Francisco stairway map"></div><div class="map-badge"><span class="live-dot"></span> THE CITY IS BETTER ON FOOT</div><div class="map-actions"><button id="locate" aria-label="Find my location" title="Find my location">${icon('locate')}</button><button id="fit" aria-label="Fit all filtered stairways" title="Fit filtered stairways">${icon('pin')}</button></div><details class="map-legend" open><summary>Map legend <span>⌃</span></summary><div>${[5,4,3,2,1,0].map(r=>`<div><span class="dot" style="--dot:${colors[r]}"></span><b>${r || '?'}</b> ${labels[r]}</div>`).join('')}<button id="legend-button">What do the ratings mean? ↗</button></div></details><div id="detail" class="detail" hidden></div><p id="map-status" role="status" hidden></p></div></div>
+      <div class="filter-bar"><span class="filter-label">EXPLORE BY RATING</span><div class="rating-filters"><button class="chip active" data-rating="all" aria-pressed="true">All stairs</button>${[5,4,3,2,1].map(r => `<button class="chip" data-rating="${r}" aria-pressed="false"><span class="dot" style="--dot:${colors[r]}"></span>${r}<span class="chip-extra"> · ${['','','Local favorites','Hidden gems','Impressive','Extraordinary'][r] || 'Everyday'}</span></button>`).join('')}</div><label class="photo-filter" title="Filter results to stairways with visible photo previews"><input type="checkbox" id="photos-only"> Only show stairways with photo previews</label><label class="photo-filter retrofit-filter" title="Filter results to stairways flagged as needing an escalator"><input type="checkbox" id="retrofit-only"> Only show stairways that need an escalator</label></div>
+      <div class="explorer-body"><aside class="results-panel"><div class="results-heading"><div><h2>Your next discovery</h2><p id="result-count" aria-live="polite"></p></div><button id="reset" class="reset">Reset</button></div><div id="results" class="results"></div></aside><div class="map-wrap"><div id="map" aria-label="Interactive San Francisco stairway map"></div><div class="map-badge"><span class="live-dot"></span> THE CITY IS BETTER ON FOOT</div><div class="map-actions"><button id="locate" aria-label="Find my location" title="Find my location">${icon('locate')}</button><button id="fit" aria-label="Fit all filtered stairways" title="Fit filtered stairways">${icon('pin')}</button></div><details class="map-legend" open><summary>Map legend <span>⌃</span></summary><div>${[5,4,3,2,1,0].map(r=>`<div><span class="dot" style="--dot:${colors[r]}"></span><b>${r || '?'}</b> ${labels[r]}</div>`).join('')}<div class="legend-retrofit"><span class="retrofit-flag">Needs escalator</span> Flagged where an escalator would help most</div><button id="legend-button">What do the ratings mean? ↗</button></div></details><div id="detail" class="detail" hidden></div><p id="map-status" role="status" hidden></p></div></div>
     </section>
     <section class="credit-strip"><span class="credit-mark">${icon('stairs',28)}</span><p>A love letter to the people who take the long way.<br><span>Built on the stairway map by <button id="bottom-credit">Alexandra Kenin / Urban Hiker SF</button> and the work of Mary Burk & Adah Bakalinsky.</span></p><a href="${sourceSheet}" target="_blank" rel="noopener noreferrer">Explore the original collection ${icon('external',15)}</a></section>
   </main>
@@ -116,7 +120,7 @@ function selectStair(stair: Stair) {
   history.replaceState(null, '', `#${stair.id}`);
   const detail = el('#detail');
   detail.hidden = false;
-  detail.innerHTML = `<button class="detail-close" aria-label="Close stairway details">${icon('close')}</button>${stair.image ? `<a class="detail-image-link" href="${escape(stair.photos[0])}" target="_blank" rel="noopener noreferrer"><img class="detail-image" src="${escape(stair.image)}" alt="${escape(stair.name)}"><span>Photos from the Urban Hiker SF collection ↗</span></a>` : ''}<div class="detail-content"><div class="eyebrow">${escape(stair.neighborhood)}</div><h2>${escape(stair.name)}</h2><div class="detail-tags"><span class="rating-tag" style="--dot:${colors[stair.rating]}">${stair.rating ? '★ ' + stair.rating + ' / 5' : '? Unrated'}</span><span>${labels[stair.rating]}</span></div>${measurementsSection(stair)}${stair.needsVerification ? '<p class="notice">This location needs verification in the original map.</p>' : ''}${stair.lat === null ? '<p class="notice">Listed in the spreadsheet; no matched map coordinates.</p>' : ''}<div class="detail-links">${stair.photos.map((url, i)=>`<a href="${escape(url)}" target="_blank" rel="noopener noreferrer">${icon('camera',16)} ${i ? 'More photos' : 'View original photos'} ↗</a>`).join('')}${stair.lat !== null ? `<a class="directions" href="https://www.google.com/maps/dir/?api=1&destination=${stair.lat},${stair.lng}&travelmode=walking" target="_blank" rel="noopener noreferrer">Walking directions ${icon('arrow',16)}</a>` : ''}</div>${!stair.photos.length ? '<p class="muted">No photos linked in the source collection yet.</p>' : ''}${/photo by/i.test(stair.photoNote) ? `<p class="muted">${escape(stair.photoNote.replace(/https:\/\/\S+/g, '').trim())}</p>` : ''}${'row' in stair ? `<a class="source-row" href="${sourceSheet}&range=B${stair.row}:F${stair.row}" target="_blank" rel="noopener noreferrer">View spreadsheet entry ↗</a>` : `<a class="source-row" href="${sourceMap}" target="_blank" rel="noopener noreferrer">View original map ↗</a>`}</div>`;
+  detail.innerHTML = `<button class="detail-close" aria-label="Close stairway details">${icon('close')}</button>${stair.image ? `<a class="detail-image-link" href="${escape(stair.photos[0])}" target="_blank" rel="noopener noreferrer"><img class="detail-image" src="${escape(stair.image)}" alt="${escape(stair.name)}"><span>Photos from the Urban Hiker SF collection ↗</span></a>` : ''}<div class="detail-content"><div class="eyebrow">${escape(stair.neighborhood)}</div><h2>${escape(stair.name)}</h2><div class="detail-tags"><span class="rating-tag" style="--dot:${colors[stair.rating]}">${stair.rating ? '★ ' + stair.rating + ' / 5' : '? Unrated'}</span><span>${labels[stair.rating]}</span></div>${measurementsSection(stair)}${escalatorSection(stair, assessments.get(stair.id)!)}${stair.needsVerification ? '<p class="notice">This location needs verification in the original map.</p>' : ''}${stair.lat === null ? '<p class="notice">Listed in the spreadsheet; no matched map coordinates.</p>' : ''}<div class="detail-links">${stair.photos.map((url, i)=>`<a href="${escape(url)}" target="_blank" rel="noopener noreferrer">${icon('camera',16)} ${i ? 'More photos' : 'View original photos'} ↗</a>`).join('')}${stair.lat !== null ? `<a class="directions" href="https://www.google.com/maps/dir/?api=1&destination=${stair.lat},${stair.lng}&travelmode=walking" target="_blank" rel="noopener noreferrer">Walking directions ${icon('arrow',16)}</a>` : ''}</div>${!stair.photos.length ? '<p class="muted">No photos linked in the source collection yet.</p>' : ''}${/photo by/i.test(stair.photoNote) ? `<p class="muted">${escape(stair.photoNote.replace(/https:\/\/\S+/g, '').trim())}</p>` : ''}${'row' in stair ? `<a class="source-row" href="${sourceSheet}&range=B${stair.row}:F${stair.row}" target="_blank" rel="noopener noreferrer">View spreadsheet entry ↗</a>` : `<a class="source-row" href="${sourceMap}" target="_blank" rel="noopener noreferrer">View original map ↗</a>`}</div>`;
   detail.querySelector('button')!.addEventListener('click', hideDetail);
   handleImages(detail);
   if(selectedMarker) map.removeLayer(selectedMarker);
@@ -127,6 +131,10 @@ function selectStair(stair: Stair) {
     map.panBy([-offset, 0], {animate: false});
   }
   if(window.innerWidth <= 760) el('.map-wrap').scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+function escalatorSection(stair: Stair, assessment: Assessment) {
+  const basis = assessment.basis === 'index' ? 'counted in the source index' : assessment.basis === 'osm-survey' ? 'counted by OpenStreetMap surveyors' : assessment.basis === 'rise-estimate' ? 'estimated from the measured rise' : 'estimated from the rating alone';
+  return `<section class="escalator-assessment" aria-labelledby="escalator-heading"><h3 id="escalator-heading" class="eyebrow">Escalator Retrofit Assessment</h3><div class="escalator-measurements"><div><span>Vertical efficiency</span><strong id="efficiency-score">${assessment.score} / 100</strong><small>Scored from ${assessment.steps} steps, ${basis}, and the ${stair.rating ? stair.rating + '-star' : 'unconfirmed'} rating.</small></div><div><span>Estimated glide time</span><strong id="glide-time">${assessment.glide}</strong><small>Standard escalator, one quarter second per step.</small></div></div><div class="escalator-tier"><span>Retrofit priority</span><span class="retrofit-tier" data-tier="${assessment.tier.toLowerCase().replace(/\W+/g, '-')}">${assessment.tier}</span></div><p class="escalator-remark">${assessment.remark}</p></section>`;
 }
 const cardMeta = (stair: Stair) => escape(stepSummary(stair.id, stair.steps) ?? labels[stair.rating]);
 function measurementsSection(stair: Stair) {
@@ -160,7 +168,7 @@ function formatNearbyDistance(meters: number) {
 }
 function renderList() {
   const results = el('#results');
-  results.innerHTML = visible.length ? visible.slice(0, pageSize).map(stair => { const distance = distanceFromNearbyOrigin(stair); return `<button class="stair-card" data-id="${stair.id}"><span class="thumbnail ${stair.image ? '' : 'no-photo'}" style="--tint:${colors[stair.rating]}">${stair.image ? `<img src="${escape(stair.image)}" alt="" loading="lazy">` : icon('stairs', 29)}<span class="small-rating" style="background:${colors[stair.rating]}">${stair.rating || '?'}</span></span><span class="card-copy"><span class="neighborhood">${escape(stair.neighborhood)}</span><span class="stair-name">${escape(stair.name)}</span><span class="card-meta">${distance === undefined ? cardMeta(stair) : `<b class="nearby-distance">${formatNearbyDistance(distance)}</b>`}${stair.photos.length ? ` <span>· ${icon('camera',12)}</span>` : ''}${stair.lat === null ? ' · Not mapped' : ''}</span></span><span class="card-arrow">↗</span></button>`; }).join('') + (visible.length > pageSize ? '<button id="load-more">Show more stairways ↓</button>' : '') : '<div class="empty"><h3>No stairs found.</h3><p>Try another street, neighborhood, or rating.</p><button id="empty-reset">Clear filters</button></div>';
+  results.innerHTML = visible.length ? visible.slice(0, pageSize).map(stair => { const distance = distanceFromNearbyOrigin(stair); return `<button class="stair-card" data-id="${stair.id}"><span class="thumbnail ${stair.image ? '' : 'no-photo'}" style="--tint:${colors[stair.rating]}">${stair.image ? `<img src="${escape(stair.image)}" alt="" loading="lazy">` : icon('stairs', 29)}<span class="small-rating" style="background:${colors[stair.rating]}">${stair.rating || '?'}</span>${assessments.get(stair.id)!.candidate ? '<span class="retrofit-flag">Needs escalator</span>' : ''}</span><span class="card-copy"><span class="neighborhood">${escape(stair.neighborhood)}</span><span class="stair-name">${escape(stair.name)}</span><span class="card-meta">${distance === undefined ? cardMeta(stair) : `<b class="nearby-distance">${formatNearbyDistance(distance)}</b>`}${stair.photos.length ? ` <span>· ${icon('camera',12)}</span>` : ''}${stair.lat === null ? ' · Not mapped' : ''}</span></span><span class="card-arrow">↗</span></button>`; }).join('') + (visible.length > pageSize ? '<button id="load-more">Show more stairways ↓</button>' : '') : '<div class="empty"><h3>No stairs found.</h3><p>Try another street, neighborhood, or rating.</p><button id="empty-reset">Clear filters</button></div>';
   results.querySelectorAll<HTMLButtonElement>('[data-id]').forEach(button => button.addEventListener('click', () => selectStair(stairs.find(s => s.id === button.dataset.id)!)));
   results.querySelector('#load-more')?.addEventListener('click', () => {pageSize += 45; renderList();});
   results.querySelector('#empty-reset')?.addEventListener('click', reset);
@@ -173,7 +181,7 @@ function fit() {
 }
 function render(fitMap = false) {
   el('#map-status').hidden = true;
-  visible = stairs.filter(stair => (rating === 'all' || stair.rating === Number(rating)) && (!selectedNeighborhoods.size || selectedNeighborhoods.has(stair.neighborhood)) && (!photosOnly || Boolean(stair.image)) && `${stair.name} ${stair.neighborhood}`.toLowerCase().includes(query.toLowerCase().trim()));
+  visible = stairs.filter(stair => (rating === 'all' || stair.rating === Number(rating)) && (!selectedNeighborhoods.size || selectedNeighborhoods.has(stair.neighborhood)) && (!photosOnly || Boolean(stair.image)) && (!retrofitOnly || assessments.get(stair.id)!.candidate) && `${stair.name} ${stair.neighborhood}`.toLowerCase().includes(query.toLowerCase().trim()));
   if (nearbyOrigin) visible.sort((a, b) => (distanceFromNearbyOrigin(a) ?? Infinity) - (distanceFromNearbyOrigin(b) ?? Infinity));
   pageSize = 45;
   const mapped = visible.filter(s=>s.lat!==null).length;
@@ -192,16 +200,17 @@ function render(fitMap = false) {
   if(fitMap) fit();
 }
 function reset() {
-  rating = 'all'; query = ''; selectedNeighborhoods.clear(); photosOnly = false; nearbyOrigin = undefined;
+  rating = 'all'; query = ''; selectedNeighborhoods.clear(); photosOnly = false; retrofitOnly = false; nearbyOrigin = undefined;
   if (userMarker) { map.removeLayer(userMarker); userMarker = undefined; }
   el('#near-me').innerHTML = `${icon('locate', 18)}<span><strong>Stairs near me</strong><small>Use my location</small></span><span class="near-me-arrow">${icon('arrow', 16)}</span>`;
-  el<HTMLInputElement>('#search').value = '';document.querySelectorAll<HTMLInputElement>('#neighborhood-picker input').forEach(input => input.checked = false);el('#neighborhood-label').textContent = 'All neighborhoods';el<HTMLInputElement>('#photos-only').checked = false;
+  el<HTMLInputElement>('#search').value = '';document.querySelectorAll<HTMLInputElement>('#neighborhood-picker input').forEach(input => input.checked = false);el('#neighborhood-label').textContent = 'All neighborhoods';el<HTMLInputElement>('#photos-only').checked = false;el<HTMLInputElement>('#retrofit-only').checked = false;
   hideDetail(); render(); map.setView([37.759, -122.445], 12);
 }
 el<HTMLInputElement>('#search').addEventListener('input', event => {query = (event.target as HTMLInputElement).value;render(true);});
 document.querySelectorAll<HTMLInputElement>('#neighborhood-picker input').forEach(input => input.addEventListener('change', () => { if(input.checked) selectedNeighborhoods.add(input.value);else selectedNeighborhoods.delete(input.value);el('#neighborhood-label').textContent=selectedNeighborhoods.size===1?[...selectedNeighborhoods][0]:selectedNeighborhoods.size?`${selectedNeighborhoods.size} neighborhoods`:'All neighborhoods';render(true); }));
 el('#clear-neighborhoods').addEventListener('click', () => {selectedNeighborhoods.clear();document.querySelectorAll<HTMLInputElement>('#neighborhood-picker input').forEach(input=>input.checked=false);el('#neighborhood-label').textContent='All neighborhoods';render(true);});
 el<HTMLInputElement>('#photos-only').addEventListener('change', event => {photosOnly = (event.target as HTMLInputElement).checked;render();});
+el<HTMLInputElement>('#retrofit-only').addEventListener('change', event => {retrofitOnly = (event.target as HTMLInputElement).checked;render();});
 document.querySelectorAll<HTMLButtonElement>('[data-rating]').forEach(button => button.addEventListener('click', () => {rating = button.dataset.rating!;render();}));
 el('#reset').addEventListener('click', reset);
 el('#fit').addEventListener('click', fit);

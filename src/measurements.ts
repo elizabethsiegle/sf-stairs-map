@@ -1,4 +1,4 @@
-import metrics from './stairway-metrics.json';
+import metrics from './stairway-metrics.json' with { type: 'json' };
 
 /** How a stairway's step count was arrived at, in descending order of authority. */
 export type StepSource = 'index' | 'osm-survey' | 'rise-estimate';
