@@ -94,3 +94,40 @@ test('sheet-only locations never get invented coordinates', async ({ page }) => 
   await expect(page.locator('#detail h2')).toContainText('Coyote Crags');
   expect(page.url()).toBe(url);
 });
+
+test('stairway measurements come from the bundled cache, not a live API', async ({ page }) => {
+  const errors: string[] = [];
+  const apiCalls: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('request', request => {
+    const url = request.url();
+    if (/\/api\/|maps\.googleapis\.com|nationalmap\.gov|overpass/.test(url)) apiCalls.push(url);
+  });
+  await page.goto('/');
+
+  // A real check on accuracy: the 16th Avenue Tiled Steps have 163 steps.
+  await page.locator('#search').fill('16th Avenue Tiled Steps');
+  await page.locator('.stair-card').first().click();
+  await expect(page.locator('#step-count')).toHaveText(/^~?1[56][0-9] steps$/);
+  await expect(page.locator('#elevation-value')).toHaveText(/^\d+ ft climb$/);
+  await expect(page.locator('#elevation-note')).toContainText('1 m lidar');
+
+  // The Lyon Street Steps are published as 288 steps.
+  await page.locator('#search').fill('Lyon Street Steps');
+  await page.locator('.stair-card').first().click();
+  await expect(page.locator('#step-count')).toHaveText(/^~?2[6-9][0-9] steps$/);
+
+  // Values render immediately, with no request in flight and no response to parse.
+  await expect(page.locator('#elevation-value')).not.toHaveText('Calculating…');
+  await expect(page.locator('#detail')).not.toContainText('not valid JSON');
+  expect(apiCalls).toEqual([]);
+  expect(errors).toEqual([]);
+});
+
+test('a stairway with no measurement says so instead of guessing', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#search').fill('Coyote Crags');
+  await page.locator('.stair-card').first().click();
+  await expect(page.locator('#elevation-value')).toHaveText('Not mapped');
+  await expect(page.locator('#step-count')).toHaveText('Not counted');
+});

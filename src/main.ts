@@ -3,6 +3,7 @@ import 'leaflet/dist/leaflet.css';
 import './style.css';
 import './route-planner.css';
 import './multi-neighborhood.css';
+import { measurementFor, riseLabel, riseNote, stepLabel, stepNote, stepReading, stepSummary } from './measurements';
 const { default: dataset } = await import('./stairs.json');
 
 type Stair = (typeof dataset.stairs)[number];
@@ -115,9 +116,8 @@ function selectStair(stair: Stair) {
   history.replaceState(null, '', `#${stair.id}`);
   const detail = el('#detail');
   detail.hidden = false;
-  detail.innerHTML = `<button class="detail-close" aria-label="Close stairway details">${icon('close')}</button>${stair.image ? `<a class="detail-image-link" href="${escape(stair.photos[0])}" target="_blank" rel="noopener noreferrer"><img class="detail-image" src="${escape(stair.image)}" alt="${escape(stair.name)}"><span>Photos from the Urban Hiker SF collection ↗</span></a>` : ''}<div class="detail-content"><div class="eyebrow">${escape(stair.neighborhood)}</div><h2>${escape(stair.name)}</h2><div class="detail-tags"><span class="rating-tag" style="--dot:${colors[stair.rating]}">${stair.rating ? '★ ' + stair.rating + ' / 5' : '? Unrated'}</span><span>${labels[stair.rating]}</span></div><section class="entry-measurements"><div><span>Step count</span><strong id="step-count">${stair.steps ? `${escape(stair.steps)} steps` : 'Estimating…'}</strong><small id="step-note">${stair.steps ? 'From the source index' : 'Estimated from Google elevation'}</small></div>${stair.lat !== null ? `<div id="elevation-card"><span>Elevation gain</span><strong id="elevation-value">Calculating…</strong><button id="elevation-button">${icon('elevation', 15)} Calculate from Google Maps</button><small id="elevation-note">Using the mapped point and a Google Maps endpoint or local terrain range.</small></div>` : '<div><span>Elevation gain</span><strong>Not mapped</strong><small>This entry has no coordinates.</small></div>'}</section>${stair.needsVerification ? '<p class="notice">This location needs verification in the original map.</p>' : ''}${stair.lat === null ? '<p class="notice">Listed in the spreadsheet; no matched map coordinates.</p>' : ''}<div class="detail-links">${stair.photos.map((url, i)=>`<a href="${escape(url)}" target="_blank" rel="noopener noreferrer">${icon('camera',16)} ${i ? 'More photos' : 'View original photos'} ↗</a>`).join('')}${stair.lat !== null ? `<a class="directions" href="https://www.google.com/maps/dir/?api=1&destination=${stair.lat},${stair.lng}&travelmode=walking" target="_blank" rel="noopener noreferrer">Walking directions ${icon('arrow',16)}</a>` : ''}</div>${!stair.photos.length ? '<p class="muted">No photos linked in the source collection yet.</p>' : ''}${/photo by/i.test(stair.photoNote) ? `<p class="muted">${escape(stair.photoNote.replace(/https:\/\/\S+/g, '').trim())}</p>` : ''}${'row' in stair ? `<a class="source-row" href="${sourceSheet}&range=B${stair.row}:F${stair.row}" target="_blank" rel="noopener noreferrer">View spreadsheet entry ↗</a>` : `<a class="source-row" href="${sourceMap}" target="_blank" rel="noopener noreferrer">View original map ↗</a>`}</div>`;
+  detail.innerHTML = `<button class="detail-close" aria-label="Close stairway details">${icon('close')}</button>${stair.image ? `<a class="detail-image-link" href="${escape(stair.photos[0])}" target="_blank" rel="noopener noreferrer"><img class="detail-image" src="${escape(stair.image)}" alt="${escape(stair.name)}"><span>Photos from the Urban Hiker SF collection ↗</span></a>` : ''}<div class="detail-content"><div class="eyebrow">${escape(stair.neighborhood)}</div><h2>${escape(stair.name)}</h2><div class="detail-tags"><span class="rating-tag" style="--dot:${colors[stair.rating]}">${stair.rating ? '★ ' + stair.rating + ' / 5' : '? Unrated'}</span><span>${labels[stair.rating]}</span></div>${measurementsSection(stair)}${stair.needsVerification ? '<p class="notice">This location needs verification in the original map.</p>' : ''}${stair.lat === null ? '<p class="notice">Listed in the spreadsheet; no matched map coordinates.</p>' : ''}<div class="detail-links">${stair.photos.map((url, i)=>`<a href="${escape(url)}" target="_blank" rel="noopener noreferrer">${icon('camera',16)} ${i ? 'More photos' : 'View original photos'} ↗</a>`).join('')}${stair.lat !== null ? `<a class="directions" href="https://www.google.com/maps/dir/?api=1&destination=${stair.lat},${stair.lng}&travelmode=walking" target="_blank" rel="noopener noreferrer">Walking directions ${icon('arrow',16)}</a>` : ''}</div>${!stair.photos.length ? '<p class="muted">No photos linked in the source collection yet.</p>' : ''}${/photo by/i.test(stair.photoNote) ? `<p class="muted">${escape(stair.photoNote.replace(/https:\/\/\S+/g, '').trim())}</p>` : ''}${'row' in stair ? `<a class="source-row" href="${sourceSheet}&range=B${stair.row}:F${stair.row}" target="_blank" rel="noopener noreferrer">View spreadsheet entry ↗</a>` : `<a class="source-row" href="${sourceMap}" target="_blank" rel="noopener noreferrer">View original map ↗</a>`}</div>`;
   detail.querySelector('button')!.addEventListener('click', hideDetail);
-  if (stair.lat !== null && stair.lng !== null) void calculateElevation(stair, detail);
   handleImages(detail);
   if(selectedMarker) map.removeLayer(selectedMarker);
   if(stair.lat !== null && stair.lng !== null) {
@@ -128,36 +128,19 @@ function selectStair(stair: Stair) {
   }
   if(window.innerWidth <= 760) el('.map-wrap').scrollIntoView({behavior: 'smooth', block: 'start'});
 }
-async function calculateElevation(stair: Stair, detail: HTMLElement) {
-  const button = detail.querySelector<HTMLButtonElement>('#elevation-button');
-  const value = detail.querySelector<HTMLElement>('#elevation-value');
-  const note = detail.querySelector<HTMLElement>('#elevation-note');
-  if (!button || !value || !note || stair.lat === null || stair.lng === null) return;
-  button.disabled = true;
-  button.hidden = true;
-  value.textContent = 'Calculating…';
-  note.textContent = 'Looking up an endpoint and sampling the elevation path.';
-  const params = new URLSearchParams({ version: '3', lat: String(stair.lat), lng: String(stair.lng), description: stair.name.slice(0, 500) });
-  try {
-    const response = await fetch(`/api/elevation?${params}`);
-    const result = await response.json() as { available?: boolean; gainFeet?: number; descentFeet?: number; verticalFeet?: number; startFeet?: number; endFeet?: number; endpoint?: string; estimatedSteps?: number; method?: 'inferred-path' | 'local-range'; reason?: string };
-    if (!response.ok || !result.available) throw new Error(result.reason || 'Elevation data is unavailable for this entry.');
-    value.textContent = result.method === 'inferred-path' ? (result.gainFeet! >= result.descentFeet! ? `~${result.gainFeet} ft uphill` : `~${result.descentFeet} ft downhill`) : `~${result.gainFeet} ft change`;
-    note.textContent = result.method === 'inferred-path' ? `Estimated from ${result.startFeet} ft to ${result.endFeet} ft toward ${result.endpoint}.` : 'Estimated from Google elevation samples within 45 m of the mapped location.';
-    if (!stair.steps) {
-      const stepCount = detail.querySelector<HTMLElement>('#step-count');
-      const stepNote = detail.querySelector<HTMLElement>('#step-note');
-      if (stepCount && stepNote) {
-        stepCount.textContent = `~${result.estimatedSteps} steps`;
-        stepNote.textContent = 'Estimated from Google elevation using a 7 in riser.';
-      }
-    }
-  } catch (error) {
-    value.textContent = 'No estimate available';
-    note.textContent = error instanceof Error ? error.message : 'Elevation data is unavailable for this entry.';
-  } finally {
-    button.hidden = true;
-  }
+const cardMeta = (stair: Stair) => escape(stepSummary(stair.id, stair.steps) ?? labels[stair.rating]);
+function measurementsSection(stair: Stair) {
+  const reading = stepReading(stair.id, stair.steps);
+  const measurement = measurementFor(stair.id);
+  const steps = reading
+    ? `<strong id="step-count">${stepLabel(reading.steps, reading.source)}</strong><small id="step-note">${stepNote(reading.source)}</small>`
+    : '<strong id="step-count">Not counted</strong><small id="step-note">No surveyed count, and no matching staircase to measure.</small>';
+  const rise = measurement
+    ? `<strong id="elevation-value">${riseLabel(measurement)}</strong><small id="elevation-note">${riseNote(measurement)}</small>`
+    : stair.lat === null
+      ? '<strong id="elevation-value">Not mapped</strong><small id="elevation-note">This entry has no coordinates.</small>'
+      : '<strong id="elevation-value">Not measured</strong><small id="elevation-note">No staircase within 70 m of this point in OpenStreetMap.</small>';
+  return `<section class="entry-measurements"><div><span>Step count</span>${steps}</div><div id="elevation-card"><span>Elevation gain</span>${rise}</div></section>`;
 }
 function handleImages(parent: HTMLElement) {
   parent.querySelectorAll<HTMLImageElement>('img').forEach(img => img.addEventListener('error', () => {img.hidden = true; img.parentElement?.classList.add('image-unavailable');}, {once: true}));
@@ -177,7 +160,7 @@ function formatNearbyDistance(meters: number) {
 }
 function renderList() {
   const results = el('#results');
-  results.innerHTML = visible.length ? visible.slice(0, pageSize).map(stair => { const distance = distanceFromNearbyOrigin(stair); return `<button class="stair-card" data-id="${stair.id}"><span class="thumbnail ${stair.image ? '' : 'no-photo'}" style="--tint:${colors[stair.rating]}">${stair.image ? `<img src="${escape(stair.image)}" alt="" loading="lazy">` : icon('stairs', 29)}<span class="small-rating" style="background:${colors[stair.rating]}">${stair.rating || '?'}</span></span><span class="card-copy"><span class="neighborhood">${escape(stair.neighborhood)}</span><span class="stair-name">${escape(stair.name)}</span><span class="card-meta">${distance === undefined ? (stair.steps ? escape(stair.steps) + ' steps' : labels[stair.rating]) : `<b class="nearby-distance">${formatNearbyDistance(distance)}</b>`}${stair.photos.length ? ` <span>· ${icon('camera',12)}</span>` : ''}${stair.lat === null ? ' · Not mapped' : ''}</span></span><span class="card-arrow">↗</span></button>`; }).join('') + (visible.length > pageSize ? '<button id="load-more">Show more stairways ↓</button>' : '') : '<div class="empty"><h3>No stairs found.</h3><p>Try another street, neighborhood, or rating.</p><button id="empty-reset">Clear filters</button></div>';
+  results.innerHTML = visible.length ? visible.slice(0, pageSize).map(stair => { const distance = distanceFromNearbyOrigin(stair); return `<button class="stair-card" data-id="${stair.id}"><span class="thumbnail ${stair.image ? '' : 'no-photo'}" style="--tint:${colors[stair.rating]}">${stair.image ? `<img src="${escape(stair.image)}" alt="" loading="lazy">` : icon('stairs', 29)}<span class="small-rating" style="background:${colors[stair.rating]}">${stair.rating || '?'}</span></span><span class="card-copy"><span class="neighborhood">${escape(stair.neighborhood)}</span><span class="stair-name">${escape(stair.name)}</span><span class="card-meta">${distance === undefined ? cardMeta(stair) : `<b class="nearby-distance">${formatNearbyDistance(distance)}</b>`}${stair.photos.length ? ` <span>· ${icon('camera',12)}</span>` : ''}${stair.lat === null ? ' · Not mapped' : ''}</span></span><span class="card-arrow">↗</span></button>`; }).join('') + (visible.length > pageSize ? '<button id="load-more">Show more stairways ↓</button>' : '') : '<div class="empty"><h3>No stairs found.</h3><p>Try another street, neighborhood, or rating.</p><button id="empty-reset">Clear filters</button></div>';
   results.querySelectorAll<HTMLButtonElement>('[data-id]').forEach(button => button.addEventListener('click', () => selectStair(stairs.find(s => s.id === button.dataset.id)!)));
   results.querySelector('#load-more')?.addEventListener('click', () => {pageSize += 45; renderList();});
   results.querySelector('#empty-reset')?.addEventListener('click', reset);

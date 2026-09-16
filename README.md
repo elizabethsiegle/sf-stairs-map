@@ -18,7 +18,41 @@ npm test
 npm run deploy
 ```
 
-Wrangler uses your existing Cloudflare authentication. The Worker is named `sf-stairs-map`. No API keys, database, or server-side runtime are required. Map tiles use OpenStreetMap with visible attribution. Tiles load directly in the browser; the site does not prefetch or proxy them.
+Wrangler uses your existing Cloudflare authentication. The Worker is named `sf-stairs-map`. It serves static assets only: there is no API route, no key to configure, and no server-side runtime. Map tiles use OpenStreetMap with visible attribution. Tiles load directly in the browser; the site does not prefetch or proxy them.
+
+## Stairway measurements
+
+Each stairway's elevation gain and step count are measured once, ahead of time, and
+committed to `src/stairway-metrics.json`. The browser imports that file with the rest of
+the bundle, so opening a stairway makes no network request and has no response to parse.
+
+```sh
+python3 scripts/build-stairway-metrics.py
+```
+
+The script matches every mapped stairway to the real `highway=steps` geometry in
+OpenStreetMap, bridging flights that are drawn as separate ways within 25 m of each other
+so that a staircase like the 16th Avenue Tiled Steps — mapped as a dozen unconnected
+flights — is measured whole. It then samples the USGS 3DEP elevation service along that
+geometry, which answers from a 1 metre lidar surface over San Francisco.
+
+Step counts come from the best source available, and the detail panel says which one:
+
+| Source | Entries | Shown as |
+| --- | --- | --- |
+| Source index | 32 | `120 steps` |
+| Counted by OpenStreetMap surveyors | 220 | `120 steps` |
+| Estimated from the measured rise | 593 | `~120 steps` |
+
+Estimates divide the measured rise by a riser height calibrated against the 133 staircases
+OSM has already counted: 5.7 in for climbs under 10 ft and 6.73 in above. They land within
+about 16% of a surveyed count, and the panel labels them with a `~`. Stairways with no
+matching staircase within 70 m are reported as not measured rather than guessed at, as are
+the three whose counted and measured geometry disagree too much to be the same structure.
+
+Downloads are cached under `data/cache/`, so a re-run costs nothing and works offline.
+Pass `--refresh-osm` to pull fresh geometry, or `--google-key KEY` to sample the Google
+Elevation API instead of USGS.
 
 ## Data and attribution
 
