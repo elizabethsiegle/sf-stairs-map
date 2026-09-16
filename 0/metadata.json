@@ -1,0 +1,48 @@
+{
+  "cli_version": "0.10.3",
+  "checkpoint_id": "01M2P2VDXBYNGCVX8FVA3C60BQ",
+  "session_id": "01a0ac2c-47fd-7ae2-b410-c12d817bfdfa",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-16T21:44:32.680181Z",
+  "branch": "sf-stairs/elevation-and-steps",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "scripts/import-network.py",
+    "src/routing.ts"
+  ],
+  "agent": "Codex",
+  "model": "gpt-5.6-terra",
+  "turn_id": "fb393cfa88cd",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 23805,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 242944,
+    "output_tokens": 2742,
+    "api_call_count": 11
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-16T21:44:32.666994Z",
+    "agent_lines": 3,
+    "agent_removed": 2,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 3,
+    "total_lines_changed": 5,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 90,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.json": 90
+      }
+    }
+  ]
+}
