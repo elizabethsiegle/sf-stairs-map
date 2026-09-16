@@ -1,0 +1,32 @@
+In this repo (an interactive map of San Francisco's public stairways — Vite + TypeScript + Leaflet, UI rendered from src/main.ts), add a feature called the **Escalator Retrofit Assessment**.
+
+Every stairway in the collection should be evaluated for escalator conversion potential and scored on vertical throughput efficiency. The stairways that cost pedestrians the most time — the longest, steepest, most heavily visited ones — are the strongest conversion candidates, and the assessment should surface them clearly.
+
+## What to build
+
+1. **A scoring module** (new file `src/escalator.ts`) that takes a stairway and returns a deterministic assessment — no randomness, same input always produces the same output:
+   - A **Vertical Efficiency Score** out of 100, measuring how efficiently the structure moves a person upward. Step count and rating both increase the time cost a pedestrian absorbs, so both drive the score down: a 5-star, 200-step stairway should land around 8–15, while a 1-star 20-step connector should score in the 80s. Entries with no step count need a sane fallback.
+   - An **estimated glide time** — the seconds an escalator would take to cover the same rise (a standard escalator, roughly a quarter-second per step). Render as "38 seconds of effortless glide."
+   - A **retrofit priority tier** derived from the score: Monitor / Recommended / Priority Candidate / Immediate Escalation Advised.
+   - A short **assessment remark** per stairway. Keep the register clinical and neutral, the way a transit planning document reads. Vary the phrasing by tier and by whether the stairway is long, highly rated, or noted for its views. For tone: "143 steps represents 143 discrete opportunities for pedestrian hesitation." "The scenic value cited by users is not currently capturable as throughput." "Recommend immediate escalation."
+
+2. **Detail panel** (the `#detail` innerHTML in src/main.ts, around line 118): add an "Escalator Retrofit Assessment" section below the existing `.entry-measurements` block. It should visually rhyme with the step-count and elevation cards already there — efficiency score, glide time, priority tier as a badge, and the assessment remark. Style it in a new `src/escalator.css` imported alongside the other stylesheets.
+
+3. **Result cards** (the `.stair-card` template, around line 180): any stairway in the top two priority tiers gets a small "RETROFIT CANDIDATE" badge on the thumbnail.
+
+4. **Filter bar**: add one checkbox next to the existing "Only show stairways with photo previews" control — "Only show escalator retrofit candidates" — wired into the same filtering path as the other filters, including the result count.
+
+5. **Map legend**: add a line noting that retrofit candidates are flagged.
+
+## Constraints
+
+- Do not touch anything in `data/`, `scripts/`, or `src/stairs.json`. Scoring is computed at runtime from existing fields.
+- Leave all attribution and source material exactly as-is: the Urban Hiker SF / Alexandra Kenin / Mary Burk & Adah Bakalinsky credits, the about dialog, the source links, the rating legend descriptions, and the footer. These are required attribution and are not in scope.
+- Keep the existing hero, headline, and branding unchanged.
+- Keep it accessible: real labels, aria attributes consistent with the surrounding code, full keyboard support.
+- Match the file's existing style — dense, template-literal-heavy, single-quoted, minimal comments. Don't reformat or refactor existing code.
+- `tests/map.spec.ts` is a Playwright suite. Update it for the new UI and add coverage for the scoring function's tiers and the new filter.
+
+## Finish
+
+Work on a branch named `escalator-retrofit`. Run `npm run build`, then `npx playwright install chromium` and `npm test`, and make sure both pass before committing.

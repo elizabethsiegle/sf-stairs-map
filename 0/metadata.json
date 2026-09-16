@@ -1,0 +1,84 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M2MFWXN697RMZMTVQZ0AZFF3",
+  "session_id": "982f23be-e40c-49a9-9593-a51d4a9fe045",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-16T06:54:05.067133Z",
+  "branch": "escalator-retrofit",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/escalator.css",
+    "src/escalator.ts",
+    "src/main.ts",
+    "tests/map.spec.ts"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "05b9f6518730",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 228,
+    "cache_creation_tokens": 59489,
+    "cache_read_tokens": 464535,
+    "output_tokens": 9744,
+    "api_call_count": 9
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01NgvSekNi5cxs4n3DUmBHxV",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:brainstorming"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "05b9f6518730",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 30,
+        "end": 31,
+        "entry_ids": [
+          "fcd91765-0be7-4d67-9a3d-4bf2265cad14"
+        ],
+        "tool_use_id": "toolu_01NgvSekNi5cxs4n3DUmBHxV"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01NgvSekNi5cxs4n3DUmBHxV"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:brainstorming",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "initial_attribution": {
+    "calculated_at": "2026-09-16T06:54:05.038435Z",
+    "agent_lines": 137,
+    "agent_removed": 7,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 137,
+    "total_lines_changed": 144,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 84,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.json": 84
+      }
+    }
+  ]
+}
