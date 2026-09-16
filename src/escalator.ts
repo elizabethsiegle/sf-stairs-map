@@ -17,7 +17,7 @@ export const openers: Record<Tier, string[]> = {
 };
 export const closers: Record<Tier, string[]> = {
   'Immediate Escalation Advised': ['Recommend immediate escalation to escalator.', 'Recommend escalation to escalator without delay.', 'Escalation to escalator is advised immediately.', 'Recommend an escalator here at the earliest opportunity.', 'Immediate escalation to escalator is the recommendation.'],
-  'Priority Candidate': ['Recommend an escalator in the next budget.', 'Recommend escalator funding in the coming cycle.', 'An escalator belongs in the next round of works.', 'Recommend scheduling an escalator before long.', 'Worth funding an escalator in the near term.'],
+  'Priority Candidate': ['Needs immediate escalation to escalator.', 'Recommend escalator funding in the coming cycle.', 'An escalator belongs in the next round of works.', 'Recommend scheduling an escalator before long.', 'Worth funding an escalator in the near term.'],
   'Recommended': ['Recommend a review when funds allow.', 'Recommend a closer look when budget permits.', 'Worth reviewing at the next opportunity.', 'Recommend assessment in a future cycle.', 'A review is advised when resources free up.'],
   'Monitor': ['No action recommended for now.', 'No action needed at present.', 'Leave as is and review later.', 'No intervention recommended.', 'Recommend no change at this time.']
 };
