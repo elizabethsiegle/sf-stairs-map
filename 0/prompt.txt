@@ -1,0 +1,1 @@
+Fix the estimated elevation gain and step count, we are getting json parsing errors. do not requery google each time a page loads, do a 1 time load for each staircase and cache it in the repo.
