@@ -1,0 +1,15 @@
+{
+  "name": "order-of-play",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A to-do list served as a matchday order of play, built on Express.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test \"test/**/*.test.js\""
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": { "express": "^5.1.0" }
+}

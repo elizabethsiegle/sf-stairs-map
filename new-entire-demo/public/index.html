@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Order of Play</title>
+<meta name="description" content="A to-do list kept the way a tournament keeps its order of play.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,600;6..96,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<main class="programme">
+
+  <header class="masthead">
+    <div class="masthead__title">
+      <p class="eyebrow">The Grounds <span class="dot"></span> Session No. 1</p>
+      <h1>Order of Play</h1>
+      <p class="dateline" id="dateline">&nbsp;</p>
+    </div>
+    <dl class="tally" id="tally">
+      <div><dt>Scheduled</dt><dd id="tally-total">0</dd></div>
+      <div><dt>To play</dt><dd id="tally-remaining">0</dd></div>
+      <div class="tally__done"><dt>Completed</dt><dd id="tally-done">0</dd></div>
+    </dl>
+  </header>
+
+  <div class="rule rule--double" role="presentation"></div>
+
+  <form class="slip" id="new-todo-form" autocomplete="off">
+    <p class="slip__label">Add to the schedule</p>
+    <div class="slip__row">
+      <label class="field field--title">
+        <span class="field__label">Match</span>
+        <input id="title" name="title" type="text" maxlength="200" required
+               placeholder="Restring the racquets before the quarters">
+      </label>
+      <label class="field field--court">
+        <span class="field__label">Court</span>
+        <input id="court" name="court" type="number" min="1" max="18" inputmode="numeric" placeholder="—">
+      </label>
+    </div>
+    <div class="slip__row">
+      <label class="field field--note">
+        <span class="field__label">Note <span class="field__hint">optional</span></span>
+        <input id="note" name="note" type="text" maxlength="500" placeholder="New balls, two spare grips">
+      </label>
+      <button type="submit" class="btn btn--primary">Schedule it</button>
+    </div>
+    <p class="slip__error" id="form-error" role="alert" hidden></p>
+  </form>
+
+  <section class="board" aria-labelledby="board-heading">
+    <div class="board__head">
+      <h2 id="board-heading">Not before 10.00</h2>
+      <div class="filters" role="group" aria-label="Filter the schedule">
+        <button type="button" class="chip is-active" data-filter="all">All</button>
+        <button type="button" class="chip" data-filter="open">To play</button>
+        <button type="button" class="chip" data-filter="done">Completed</button>
+      </div>
+    </div>
+
+    <ol class="matches" id="matches"></ol>
+
+    <div class="empty" id="empty" hidden>
+      <p class="empty__title">No matches scheduled</p>
+      <p class="empty__body">The board is bare. Write the first one on the slip above and the umpire will call it.</p>
+    </div>
+  </section>
+
+  <footer class="colophon">
+    <p class="colophon__stats" id="colophon-stats">Nothing on the board yet.</p>
+    <button type="button" class="btn btn--quiet" id="clear-completed" hidden>Clear results</button>
+  </footer>
+
+</main>
+
+<p class="live" id="live" aria-live="polite"></p>
+<script type="module" src="/app.js"></script>
+</body>
+</html>
