@@ -94,6 +94,51 @@
   "session_metrics": {
     "turn_count": 4
   },
+  "summary": {
+    "intent": "Rebase a feature branch (escalator/accessibility scoring work) off main to pick up a fix for elevation issues.",
+    "outcome": "Discovered main had not moved and the real fix lived in unmerged PR #8 (elevation-cache-only branch); rebased onto that branch instead, rewired scoring to use cached step measurements, integrated into main.ts, updated/added tests (13 passing), and verified in-browser that two example stairways now score distinctly with no API calls.",
+    "learnings": {
+      "repo": [
+        "measurements.ts on elevation-cache-only provides real per-stairway step counts from a cached repo file instead of an async elevation API call",
+        "Scoring now sources step counts from the cache for 859 of 1,123 stairways, falling back to rating-based estimates for only 264 (down from 1,076)",
+        "Playwright's Node runtime requires an explicit `with { type: 'json' }` import attribute to import the metrics JSON module (needed in measurements.ts)",
+        "A 1-star-rated stairway can legitimately be a scoring candidate once real step counts are used, which changed empty-state test assumptions"
+      ],
+      "code": [
+        {
+          "path": "src/measurements.ts",
+          "finding": "Added `with { type: 'json' }` import attribute to the metrics JSON import so Playwright/Node's resolver can load it; flagged as a possible conflict point with PR #8"
+        },
+        {
+          "path": "tests/map.spec.ts",
+          "finding": "Existing test file was missing `readFileSync` import; added it. Also appended new tests including one pinning Aurelious Walker vs Quesada Gardens scores to prevent them collapsing to the same value again"
+        },
+        {
+          "path": "src/main.ts",
+          "finding": "Integrated the escalator assessment into the rebased main.ts at the anchors used by the elevation-cache-only branch"
+        }
+      ],
+      "workflow": [
+        "When asked to 'rebase off main' but main hasn't moved, check open PRs for branches that actually contain the intended fix rather than assuming main is up to date",
+        "When repeated rebase conflicts hit the same files across multiple commits, it's cleaner to reset onto the target branch and re-apply/rebuild changes than to keep resolving conflicts commit-by-commit",
+        "Keep a backup branch (e.g. backup-escalator-retrofit) before destructive rebase/reset operations to preserve original history",
+        "Node's bare-specifier module resolution differs from Vite's; use esbuild to bundle scratch/ad-hoc verification scripts when Vite isn't available",
+        "Verify rebased/integrated changes both via full test suite and manually in the browser (dev server) before committing"
+      ]
+    },
+    "friction": [
+      "Initial instruction to 'rebase off main' was based on a false premise — main hadn't changed, so a literal rebase would be a no-op",
+      "Four rounds of merge conflicts in the same two files during initial rebase attempt onto elevation-cache-only, requiring a reset-and-rebuild approach instead",
+      "Node couldn't resolve a bare specifier for a JSON import the way Vite does, requiring a workaround via esbuild bundling and later an import attribute fix",
+      "Playwright test failures required two follow-up fixes: missing `with { type: 'json' }` attribute and a missing `readFileSync` import",
+      "An empty-state test assertion broke because a 1-star stairway could now be a valid candidate, requiring test logic update"
+    ],
+    "open_items": [
+      "Work is now coupled to unmerged PR #8 (elevation-cache-only) and should land after that PR merges",
+      "The added `with { type: 'json' }` import attribute in measurements.ts should be flagged/checked for conflicts with PR #8's own version of the file",
+      "Old commit history preserved on `backup-escalator-retrofit` branch — not yet cleaned up/deleted"
+    ]
+  },
   "initial_attribution": {
     "calculated_at": "2026-09-16T07:41:09.306457Z",
     "agent_lines": 0,
