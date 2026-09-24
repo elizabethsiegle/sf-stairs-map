@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.11.2",
+  "checkpoint_id": "01M38Y939PM6RK3726SC8NS26D",
+  "strategy": "manual-commit",
+  "branch": "todo-express",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "new-entire-demo/.gitignore",
+    "new-entire-demo/README.md",
+    "new-entire-demo/package-lock.json",
+    "new-entire-demo/package.json",
+    "new-entire-demo/public/app.js",
+    "new-entire-demo/public/index.html",
+    "new-entire-demo/public/styles.css",
+    "new-entire-demo/server.js",
+    "new-entire-demo/src/app.js",
+    "new-entire-demo/src/store.js",
+    "new-entire-demo/test/api.test.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 64,
+    "cache_creation_tokens": 89100,
+    "cache_read_tokens": 2615869,
+    "output_tokens": 39583,
+    "api_call_count": 32
+  }
+}
